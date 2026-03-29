@@ -30,8 +30,11 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_TOKEN: str | None = None
     TELEGRAM_CHAT_ID: int | None = None
 
-    ENV: str = "dev"
-    DEBUG: bool = True
-    CORS_ORIGINS: list[str] = ["http://localhost:5173"]
+    ENV: str = "prod"
+    DEBUG: bool = False
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "https://your-frontend.vercel.app",
+    ]
 
 settings = Settings()
