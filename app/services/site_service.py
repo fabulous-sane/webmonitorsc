@@ -58,7 +58,6 @@ class SiteService:
 
             raise SiteAlreadyExists()
 
-        # ищем по url
         existing_by_url = await self._repo.get_by_user_and_url(
             user_id=user_id,
             url=url,
@@ -82,7 +81,6 @@ class SiteService:
 
             raise SiteAlreadyExists()
 
-        # создаём новый
         try:
             site = await self._repo.create(
                 user_id=user_id,

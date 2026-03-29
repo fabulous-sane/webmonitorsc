@@ -25,7 +25,13 @@ from app.services.exceptions import (
     SiteLimitExceeded,
     SiteAlreadyExists,
     SiteNotFound,
+    UserAlreadyExists,
+    InvalidCredentials,
+    EmailNotConfirmed,
+    InvalidToken,
+    TokenExpired, InvalidRefreshToken, UserInactive, InvalidLogoutToken,
 )
+
 logger = logging.getLogger(__name__)
 
 logging.basicConfig(
@@ -160,4 +166,60 @@ async def handle_site_not_found(_, __):
     return JSONResponse(
         status_code=404,
         content={"detail": "Site not found"},
+    )
+
+@app.exception_handler(UserAlreadyExists)
+async def handle_user_exists(_, __):
+    return JSONResponse(
+        status_code=409,
+        content={"detail": "User already exists"},
+    )
+
+@app.exception_handler(InvalidCredentials)
+async def handle_invalid_credentials(_, __):
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Invalid credentials"},
+    )
+
+@app.exception_handler(EmailNotConfirmed)
+async def handle_email_not_confirmed(_, __):
+    return JSONResponse(
+        status_code=403,
+        content={"detail": "Email not confirmed"},
+    )
+
+@app.exception_handler(InvalidToken)
+async def handle_invalid_token(_, __):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Invalid token"},
+    )
+
+@app.exception_handler(TokenExpired)
+async def handle_token_expired(_, __):
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Token expired"},
+    )
+
+@app.exception_handler(InvalidRefreshToken)
+async def handle_invalid_refresh(_, __):
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Invalid refresh token"},
+    )
+
+@app.exception_handler(UserInactive)
+async def handle_user_inactive(_, __):
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "User inactive"},
+    )
+
+@app.exception_handler(InvalidLogoutToken)
+async def handle_invalid_logout(_, __):
+    return JSONResponse(
+        status_code=401,
+        content={"detail": "Invalid logout token"},
     )

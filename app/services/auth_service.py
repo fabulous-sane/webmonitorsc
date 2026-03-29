@@ -1,7 +1,11 @@
 # app/services/auth_service.py
 
 from datetime import timedelta, datetime, timezone
+
+from jose import JWTError, jwt
 from sqlalchemy.exc import IntegrityError
+
+from app.core.config import settings
 from app.models.refresh_token import RefreshToken
 from app.repositories.users import UsersRepository
 from app.repositories.refresh_tokens import RefreshTokenRepository
@@ -13,6 +17,8 @@ from app.security.email_confirmation import (
     hash_token,
     generate_password_reset_token,
 )
+from app.services.exceptions import UserAlreadyExists, InvalidCredentials, EmailNotConfirmed, InvalidToken, \
+    TokenExpired, InvalidRefreshToken, UserInactive, InvalidLogoutToken
 
 
 class AuthService:
@@ -40,7 +46,7 @@ class AuthService:
 
         except IntegrityError:
             await self.users_repo.session.rollback()
-            raise ValueError("User already exists")
+            raise UserAlreadyExists()
 
         await EmailService.send_confirmation_email(
             email=user.email,
@@ -51,10 +57,10 @@ class AuthService:
         user = await self.users_repo.get_by_email(email)
 
         if not user or not verify_password(password, user.password_hash):
-            raise ValueError("Invalid credentials")
+            raise InvalidCredentials()
 
         if not user.is_verified:
-            raise ValueError("Email not confirmed")
+            raise EmailNotConfirmed()
 
         access_token, access_jti = create_access_token(str(user.id))
         refresh_token, refresh_jti, expires_at = create_refresh_token(str(user.id))
@@ -82,13 +88,13 @@ class AuthService:
         user = await self.users_repo.get_by_email_confirm_token(token_hash)
 
         if not user:
-            raise ValueError("Invalid token")
+            raise InvalidToken()
 
         if (
             user.email_confirm_expires_at is None
             or user.email_confirm_expires_at < datetime.now(timezone.utc)
         ):
-            raise ValueError("Token expired")
+            raise TokenExpired()
 
         user.is_verified = True
         user.email_verified_at = datetime.now(timezone.utc)
@@ -147,13 +153,13 @@ class AuthService:
         user = await self.users_repo.get_by_password_reset_token(token_hash)
 
         if not user:
-            raise ValueError("Invalid token")
+            raise InvalidToken()
 
         if (
             user.password_reset_expires_at is None
             or user.password_reset_expires_at < datetime.now(timezone.utc)
         ):
-            raise ValueError("Token expired")
+            raise TokenExpired()
 
         if len(new_password) < 6:
             raise ValueError("Password is too short")
@@ -162,4 +168,95 @@ class AuthService:
         user.password_reset_token_hash = None
         user.password_reset_expires_at = None
 
+        await self.users_repo.session.commit()
+
+    async def refresh(self, refresh_token: str) -> dict:
+        try:
+            payload = jwt.decode(
+                refresh_token,
+                settings.SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+            )
+        except JWTError:
+            raise InvalidToken()
+
+        if payload.get("type") != "refresh":
+            raise InvalidToken()
+
+        jti = payload.get("jti")
+        user_id = payload.get("sub")
+
+        if not jti or not user_id:
+            raise InvalidToken()
+
+        refresh_repo = RefreshTokenRepository(self.users_repo.session)
+        token_obj = await refresh_repo.get_by_jti(jti)
+
+        user = await self.users_repo.get_by_id(user_id)
+
+        if not user or not user.is_active:
+            raise UserInactive()
+
+        if not token_obj or str(token_obj.user_id) != str(user_id):
+            raise InvalidRefreshToken()
+
+        if (
+                token_obj.is_revoked
+                or token_obj.expires_at < datetime.now(timezone.utc)
+                or token_obj.token_hash != hash_refresh_token(refresh_token)
+        ):
+            raise InvalidRefreshToken()
+
+        await refresh_repo.revoke(token_obj)
+
+        access_token, _ = create_access_token(user_id)
+        new_refresh_token, new_jti, expires_at = create_refresh_token(user_id)
+
+        new_token_obj = RefreshToken(
+            user_id=token_obj.user_id,
+            jti=new_jti,
+            token_hash=hash_refresh_token(new_refresh_token),
+            expires_at=expires_at,
+        )
+
+        await refresh_repo.create(new_token_obj)
+        await self.users_repo.session.commit()
+
+        return {
+            "access_token": access_token,
+            "refresh_token": new_refresh_token,
+            "token_type": "bearer",
+        }
+
+    async def logout(self, refresh_token: str) -> None:
+        try:
+            payload = jwt.decode(
+                refresh_token,
+                settings.SECRET_KEY,
+                algorithms=[settings.JWT_ALGORITHM],
+            )
+        except JWTError:
+            raise InvalidToken()
+
+        if payload.get("type") != "refresh":
+            raise InvalidToken()
+
+        jti = payload.get("jti")
+        user_id = payload.get("sub")
+
+        if not jti or not user_id:
+            raise InvalidToken()
+
+        refresh_repo = RefreshTokenRepository(self.users_repo.session)
+        token_obj = await refresh_repo.get_by_jti(jti)
+
+        if (
+                not token_obj
+                or token_obj.is_revoked
+                or token_obj.token_hash != hash_refresh_token(refresh_token)
+                or token_obj.expires_at < datetime.now(timezone.utc)
+        ):
+            raise InvalidLogoutToken()
+
+        await refresh_repo.revoke(token_obj)
         await self.users_repo.session.commit()

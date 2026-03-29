@@ -1,17 +1,13 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy.ext.asyncio import AsyncSession
-from jose import jwt, JWTError
 
 from app.core.database import get_db
-from app.core.config import settings
-from app.models.refresh_token import RefreshToken
-from app.repositories.refresh_tokens import RefreshTokenRepository
+
 from app.repositories.users import UsersRepository
-from app.security.jwt import create_access_token, create_refresh_token
-from app.security.password import hash_refresh_token
+
 from app.services.auth_service import AuthService
 from app.security.dependencies import get_current_user
 
@@ -54,11 +50,8 @@ async def register(
 ):
     service = AuthService(UsersRepository(session))
 
-    try:
-        await service.register(data.email, data.password)
-        return {"status": "confirmation_sent"}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    await service.register(data.email, data.password)
+    return {"status": "confirmation_sent"}
 
 @router.post("/login")
 async def login(
@@ -67,41 +60,16 @@ async def login(
 ):
     service = AuthService(UsersRepository(session))
 
-    try:
-        tokens = await service.login(data.email, data.password)
-        return tokens
-    except ValueError:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+    tokens = await service.login(data.email, data.password)
+    return tokens
 
 @router.post("/logout")
 async def logout(
     data: RefreshRequest,
     session: AsyncSession = Depends(get_db),
 ):
-    try:
-        payload = jwt.decode(
-            data.refresh_token,
-            settings.SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM],
-        )
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    if payload.get("type") != "refresh":
-        raise HTTPException(status_code=401, detail="Invalid token type")
-
-    repo = RefreshTokenRepository(session)
-    token_obj = await repo.get_by_jti(payload.get("jti"))
-
-    if (
-            token_obj
-            and not token_obj.is_revoked
-            and token_obj.token_hash == hash_refresh_token(data.refresh_token)
-            and token_obj.expires_at > datetime.now(timezone.utc)
-    ):
-        await repo.revoke(token_obj)
-        await session.commit()
-
+    service = AuthService(UsersRepository(session))
+    await service.logout(data.refresh_token)
     return {"status": "logged_out"}
 
 @router.get("/me")
@@ -120,11 +88,9 @@ async def confirm_email(
 ):
     service = AuthService(UsersRepository(session))
 
-    try:
-        await service.confirm_email(data.token)
-        return {"status": "email_confirmed"}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    await service.confirm_email(data.token)
+    return {"status": "email_confirmed"}
+
 
 @router.post("/resend-confirmation")
 async def resend_confirmation(
@@ -151,76 +117,19 @@ async def reset_password(
 ):
     service = AuthService(UsersRepository(session))
 
-    try:
-        await service.reset_password(
-            token=data.token,
-            new_password=data.new_password,
-        )
-        return {"status": "password_updated"}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+
+    await service.reset_password(
+        token=data.token,
+        new_password=data.new_password,
+    )
+    return {"status": "password_updated"}
 
 @router.post("/refresh")
 async def refresh(
     data: RefreshRequest,
     session: AsyncSession = Depends(get_db),
 ):
-    try:
-        payload = jwt.decode(
-            data.refresh_token,
-            settings.SECRET_KEY,
-            algorithms=[settings.JWT_ALGORITHM],
-        )
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    if payload.get("type") != "refresh":
-        raise HTTPException(status_code=401, detail="Invalid token type")
-
-    jti = payload.get("jti")
-    user_id = payload.get("sub")
-
-    if not jti or not user_id:
-        raise HTTPException(status_code=401, detail="Invalid token payload")
-
-    repo = RefreshTokenRepository(session)
-    token_obj = await repo.get_by_jti(jti)
-
-    user_repo = UsersRepository(session)
-    user = await user_repo.get_by_id(user_id)
-
-    if not user or not user.is_active:
-        raise HTTPException(status_code=401, detail="User inactive")
-
-    if not token_obj or str(token_obj.user_id) != str(user_id):
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-
-    if (
-        token_obj.is_revoked
-        or token_obj.expires_at < datetime.now(timezone.utc)
-        or token_obj.token_hash != hash_refresh_token(data.refresh_token)
-    ):
-        raise HTTPException(status_code=401, detail="Invalid refresh token")
-
-    await repo.revoke(token_obj)
-
-    access_token, _ = create_access_token(user_id)
-    new_refresh_token, new_jti, expires_at = create_refresh_token(user_id)
-
-    new_token_obj = RefreshToken(
-        user_id=token_obj.user_id,
-        jti=new_jti,
-        token_hash=hash_refresh_token(new_refresh_token),
-        expires_at=expires_at,
-    )
-
-    await repo.create(new_token_obj)
-    await session.commit()
-
-    return {
-        "access_token": access_token,
-        "refresh_token": new_refresh_token,
-        "token_type": "bearer",
-    }
+    service = AuthService(UsersRepository(session))
+    return await service.refresh(data.refresh_token)
 
 
