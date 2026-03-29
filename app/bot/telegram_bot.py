@@ -24,12 +24,15 @@ from app.monitoring.status import SiteStatus
 
 logger = logging.getLogger(__name__)
 
-bot = Bot(
-    token=settings.TELEGRAM_BOT_TOKEN,
-    default=DefaultBotProperties(parse_mode=ParseMode.HTML),
-)
+bot = None
+dp = None
 
-dp = Dispatcher()
+if settings.TELEGRAM_BOT_TOKEN:
+    bot = Bot(
+        token=settings.TELEGRAM_BOT_TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
+    )
+    dp = Dispatcher()
 
 def main_menu():
     return ReplyKeyboardMarkup(
