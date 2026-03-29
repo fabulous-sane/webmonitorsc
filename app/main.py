@@ -105,9 +105,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-print("CORS_ORIGINS =", settings.CORS_ORIGINS)
-print("TYPE =", type(settings.CORS_ORIGINS))
-
 app.include_router(sites_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(export_router, prefix="/api/v1")
@@ -115,7 +112,6 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(telegram_router, prefix="/api/v1")
 app.include_router(health_router, prefix="/api/v1")
 app.include_router(system_router, prefix="/api/v1")
-
 
 @app.get("/ready", include_in_schema=False)
 async def ready(request: Request):
