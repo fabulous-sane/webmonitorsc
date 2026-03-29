@@ -28,8 +28,10 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"
+    class Settings(BaseSettings):
+        model_config = {
+            "env_file": ".env",
+            "extra": "ignore",
+        }
 
 settings = Settings()
