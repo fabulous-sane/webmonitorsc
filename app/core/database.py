@@ -14,6 +14,8 @@ database_url = settings.DATABASE_URL.replace(
     "postgresql+asyncpg://",
 )
 
+print("REAL DATABASE URL:", settings.DATABASE_URL)
+
 engine = create_async_engine(
     database_url,
     isolation_level="READ COMMITTED",
