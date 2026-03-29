@@ -193,13 +193,12 @@ const handleExport = async () => {
         </div>
       </div>
 
-      {/* SLA */}
       <div className="grid grid-cols-3 gap-4 text-sm mt-4">
         <SLA label="24г" value={uptime_24h} />
         <SLA label="7д" value={uptime_7d} />
         <SLA label="30д" value={uptime_30d} />
       </div>
-       {/* RANGE SWITCHER */}
+
 <div className="flex gap-2 mt-4 text-sm">
   {["24h", "7d", "30d"].map(r => (
     <button
@@ -215,7 +214,7 @@ const handleExport = async () => {
     </button>
   ))}
 </div>
-      {/* CHART */}
+
       {expanded && (
         <div className="mt-6 h-72">
           {loading || chartData.length === 0 ? (
