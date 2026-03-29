@@ -9,11 +9,11 @@ class Settings(BaseSettings):
 
     FRONTEND_URL: str = "http://localhost:5173"
     DATABASE_URL: str
-    SECRET_KEY: str
+    SECRET_KEY: str | None = None
     JWT_ALGORITHM: str = "HS256"
 
     SENDGRID_API_KEY: str | None = None
-    EMAIL_FROM: str
+    EMAIL_FROM: str | None = None
     RETRY_COUNT: ClassVar[int] = 2
     MAX_RETRIES: ClassVar[int] = 3
     BACKOFF_BASE: float = 0.5
