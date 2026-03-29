@@ -1,0 +1,5 @@
+.env
+.env.production
+docker-compose.yml
+venv
+node_modules
