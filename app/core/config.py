@@ -1,12 +1,18 @@
 from pydantic_settings import BaseSettings
 from typing import ClassVar
 class Settings(BaseSettings):
+
+    model_config = {
+        "env_file": ".env",
+        "extra": "ignore",
+    }
+
     FRONTEND_URL: str = "http://localhost:5173"
     DATABASE_URL: str
     SECRET_KEY: str
     JWT_ALGORITHM: str = "HS256"
 
-    SENDGRID_API_KEY: str
+    SENDGRID_API_KEY: str | None = None
     EMAIL_FROM: str
     RETRY_COUNT: ClassVar[int] = 2
     MAX_RETRIES: ClassVar[int] = 3
@@ -21,17 +27,11 @@ class Settings(BaseSettings):
     FLAP_DOWN_THRESHOLD: int = 2
     RETENTION_DAYS: int = 10
 
-    TELEGRAM_BOT_TOKEN: str
-    TELEGRAM_CHAT_ID: int
+    TELEGRAM_BOT_TOKEN: str | None = None
+    TELEGRAM_CHAT_ID: int | None = None
 
     ENV: str = "dev"
     DEBUG: bool = True
     CORS_ORIGINS: list[str] = ["http://localhost:5173"]
-
-    class Settings(BaseSettings):
-        model_config = {
-            "env_file": ".env",
-            "extra": "ignore",
-        }
 
 settings = Settings()
