@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
-        "https://webmonitorsc.vercel.app/",
+        "https://webmonitorsc.vercel.app",
     ]
 
 settings = Settings()
