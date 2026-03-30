@@ -23,6 +23,7 @@ async def cleanup_old_checks(
             WHERE id IN (
                 SELECT id FROM check_results
                 WHERE checked_at < :cutoff
+                ORDER BY checked_at
                 LIMIT :batch_size
             )
         """)

@@ -31,6 +31,7 @@ class TelegramTokenRepository:
             return None
 
         if obj.expires_at < datetime.now(timezone.utc):
+            await self.delete(token)
             return None
 
         return obj

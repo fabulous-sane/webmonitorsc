@@ -29,7 +29,7 @@ class CheckResultsRepository:
                    END AS uptime
                FROM check_results
                WHERE site_id = :site_id
-                 AND checked_at > :cutoff
+                 AND checked_at >= :cutoff
            """)
 
         result = await self.session.execute(

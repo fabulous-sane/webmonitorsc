@@ -85,9 +85,9 @@ async def cmd_start(message: types.Message):
 async def help_button(message: types.Message):
     text = (
         "📖 <b>Доступні дії:</b>\n\n"
-        "📊 Мої сайти — переглянути список сайтів\n"
-        "🔌 Відключити — відв’язати Telegram\n\n"
-        "Або використовуйте:\n"
+        "📊 Мої сайти: переглянути список сайтів\n"
+        "🔌 Відключити: відв’язати Telegram\n\n"
+        "Або використовуйте для підключення:\n"
         "<code>/connect CODE</code>"
     )
     await safe_send(message.chat.id, text)

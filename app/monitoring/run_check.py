@@ -24,16 +24,25 @@ def _is_private_host(host: str | None) -> bool:
         return True
 
     try:
-        ip = ipaddress.ip_address(socket.gethostbyname(host))
-        return (
-            ip.is_private
-            or ip.is_loopback
-            or ip.is_reserved
-            or ip.is_multicast
-        )
+        infos = socket.getaddrinfo(host, None)
+
+        for info in infos:
+            ip_str = info[4][0]
+            ip = ipaddress.ip_address(ip_str)
+
+            if (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_reserved
+                or ip.is_multicast
+                or ip.is_link_local
+            ):
+                return True
+
+        return False
+
     except Exception:
         return True
-
 
 async def run_check(url: str) -> CheckRawResult:
     parsed = urlparse(url)
@@ -59,6 +68,16 @@ async def run_check(url: str) -> CheckRawResult:
             start = time.monotonic()
             response = await client.get(url)
             duration = int((time.monotonic() - start) * 1000)
+
+            final_host = urlparse(str(response.url)).hostname
+
+            if _is_private_host(final_host):
+                return CheckRawResult(
+                    reachable=False,
+                    status_code=None,
+                    response_time_ms=None,
+                    error_type="blocked_private_ip",
+                )
 
             return CheckRawResult(
                 reachable=True,

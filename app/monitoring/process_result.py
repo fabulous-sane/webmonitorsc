@@ -45,11 +45,12 @@ async def process_check_result(
             notify_payload=None,
         )
 
-    raw_status = (
-        SiteStatus.UP
-        if raw.reachable and raw.status_code is not None and raw.status_code < 400
-        else SiteStatus.DOWN
-    )
+    if not raw.reachable or raw.status_code is None:
+        raw_status = SiteStatus.DOWN
+    elif raw.status_code >= 500:
+        raw_status = SiteStatus.DOWN
+    else:
+        raw_status = SiteStatus.UP
 
     await checks_repo.add_result(
         site_id=site.id,
