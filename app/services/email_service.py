@@ -1,20 +1,33 @@
 import asyncio
+import logging
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from app.core.config import settings
 
+logger = logging.getLogger(__name__)
+
 class EmailService:
+    def __init__(self) -> None:
+        self._client = SendGridAPIClient(settings.SENDGRID_API_KEY)
 
-    @staticmethod
-    async def _send(message: Mail) -> None:
+    async def _send(self, message: Mail) -> None:
+        if settings.ENVIRONMENT == "development":
+            logger.info("Email skipped in development: %s", message.subject)
+            return
+
         def blocking():
-            sg = SendGridAPIClient(settings.SENDGRID_API_KEY)
-            sg.send(message)
+            self._client.send(message)
 
-        await asyncio.to_thread(blocking)
+        try:
+            await asyncio.wait_for(
+                asyncio.to_thread(blocking),
+                timeout=10,
+            )
+        except Exception as e:
+            logger.exception("Email sending failed")
+            raise RuntimeError("Failed to send email") from e
 
-    @staticmethod
-    async def send_confirmation_email(*, email: str, token: str) -> None:
+    async def send_confirmation_email(self, *, email: str, token: str) -> None:
         confirm_link = (
             f"{settings.FRONTEND_URL}/confirm-email?token={token}"
         )
@@ -22,7 +35,7 @@ class EmailService:
         message = Mail(
             from_email=settings.EMAIL_FROM,
             to_emails=email,
-            subject="Confirm your email",
+            subject="Підтвердження пошти",
             html_content=f"""
                 <p>Привіт,</p>
                 <p>Підтверди свою пошту для реєстрації у сервісі WebMonitor:</p>
@@ -32,17 +45,13 @@ class EmailService:
                   </a>
                 </p>
                 <p>Посилання дійсне 24 години.</p>
-                <p>(Якщо не реєструвався - просто проігноруй цей лист)</p>
+                <p>(Якщо не реєструвався, просто проігноруй цей лист.)</p>
             """,
         )
 
-        try:
-            await EmailService._send(message)
-        except Exception as e:
-            raise RuntimeError("Failed to send confirmation email") from e
+        await self._send(message)
 
-    @staticmethod
-    async def send_password_reset_email(*, email: str, token: str) -> None:
+    async def send_password_reset_email(self, *, email: str, token: str) -> None:
         reset_link = (
             f"{settings.FRONTEND_URL}/reset-password?token={token}"
         )
@@ -50,17 +59,14 @@ class EmailService:
         message = Mail(
             from_email=settings.EMAIL_FROM,
             to_emails=email,
-            subject="Reset your password",
+            subject="Скидання паролю",
             html_content=f"""
                 <p>Хтось запросив скидання паролю.</p>
                 <p>Якщо це ти - натисни:</p>
                 <p><a href="{reset_link}">Reset password</a></p>
                 <p>Посилання дійсне 30 хвилин.</p>
-                <p>(Якщо це не ти - просто проігноруй лист.)</p>
+                <p>(Якщо це не ти, то просто проігноруй лист.)</p>
             """,
         )
 
-        try:
-            await EmailService._send(message)
-        except Exception as e:
-            raise RuntimeError("Failed to send password reset email") from e
+        await self._send(message)
