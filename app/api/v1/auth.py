@@ -17,27 +17,21 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6)
 
-
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
-
 class RefreshRequest(BaseModel):
     refresh_token: str
-
 
 class ConfirmEmailRequest(BaseModel):
     token: str
 
-
 class ResendConfirmationRequest(BaseModel):
     email: EmailStr
 
-
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr
-
 
 class ResetPasswordRequest(BaseModel):
     token: str
