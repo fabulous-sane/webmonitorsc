@@ -19,7 +19,13 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    pass
+    op.execute("""
+        ALTER TABLE sites
+        ADD COLUMN IF NOT EXISTS last_checked_at TIMESTAMP WITH TIME ZONE
+    """)
 
 def downgrade() -> None:
-    pass
+    op.execute("""
+        ALTER TABLE sites
+        DROP COLUMN IF EXISTS last_checked_at
+    """)
