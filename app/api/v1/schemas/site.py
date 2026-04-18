@@ -1,11 +1,22 @@
 from uuid import UUID
-from pydantic import BaseModel, HttpUrl, field_validator
+from pydantic import BaseModel, HttpUrl, field_validator, Field
 from app.core.config import settings
 
 class SiteCreate(BaseModel):
-    name: str
+    name: str = Field(max_length=100)
     url: HttpUrl
     check_interval: int
+
+    @field_validator("name")
+    def normalize_name(cls, v):
+        v = " ".join(v.strip().split())
+        if not v:
+            raise ValueError("Name cannot be empty")
+        return v
+
+    @field_validator("url")
+    def normalize_url(cls, v: HttpUrl):
+        return HttpUrl(str(v).rstrip("/"))
 
     @field_validator("check_interval")
     @classmethod

@@ -74,3 +74,31 @@ class CheckResultsRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
+    async def get_latest_ssl(
+            self,
+            *,
+            site_id: uuid.UUID,
+    ):
+        stmt = (
+            select(
+                CheckResult.ssl_valid,
+                CheckResult.ssl_days_left,
+                CheckResult.ssl_warning,
+            )
+            .where(CheckResult.site_id == site_id)
+            .order_by(CheckResult.checked_at.desc())
+            .limit(1)
+        )
+
+        result = await self.session.execute(stmt)
+        row = result.first()
+
+        if not row:
+            return None
+
+        return {
+            "ssl_valid": row[0],
+            "ssl_days_left": row[1],
+            "ssl_warning": row[2],
+        }
+

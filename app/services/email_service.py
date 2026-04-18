@@ -7,11 +7,15 @@ from app.core.config import settings
 logger = logging.getLogger(__name__)
 
 class EmailService:
+    _client = SendGridAPIClient(settings.SENDGRID_API_KEY)
+    if not settings.SENDGRID_API_KEY:
+        raise RuntimeError("SENDGRID_API_KEY is not configured")
+
     def __init__(self) -> None:
-        self._client = SendGridAPIClient(settings.SENDGRID_API_KEY)
+        pass
 
     async def _send(self, message: Mail) -> None:
-        if settings.ENVIRONMENT == "development":
+        if settings.ENV == "development":
             logger.info("Email skipped in development: %s", message.subject)
             return
 
@@ -24,13 +28,11 @@ class EmailService:
                 timeout=10,
             )
         except Exception as e:
-            logger.exception("Email sending failed")
+            logger.exception("Email sending failed for %s", message.subject)
             raise RuntimeError("Failed to send email") from e
 
     async def send_confirmation_email(self, *, email: str, token: str) -> None:
-        confirm_link = (
-            f"{settings.FRONTEND_URL}/confirm-email?token={token}"
-        )
+        confirm_link = f"{settings.FRONTEND_URL}/confirm-email?token={token}"
 
         message = Mail(
             from_email=settings.EMAIL_FROM,

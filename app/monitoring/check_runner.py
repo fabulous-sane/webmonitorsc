@@ -8,6 +8,7 @@ from app.monitoring.run_check import run_check
 from app.monitoring.process_result import process_check_result
 from app.services.notification_service import NotificationService
 from app.monitoring.concurrency import check_semaphore
+from datetime import datetime, timezone
 
 logger = logging.getLogger(__name__)
 
@@ -33,28 +34,44 @@ class CheckSiteUseCase:
                     logger.warning("Site %s skipped", site_id)
                     return
 
+                now = datetime.now(timezone.utc)
+
+                if site.last_checked_at is not None:
+                    delta = (now - site.last_checked_at).total_seconds()
+
+                    if delta < site.check_interval * 0.8:
+                        logger.debug("Skipped duplicate check for site %s", site_id)
+                        return
+
                 raw = await run_check(url=site.url)
 
                 result = await process_check_result(
-                        session=self._session,
-                        site=site,
-                        raw=raw,
+                    session=self._session,
+                    site=site,
+                    raw=raw,
                 )
 
+                site.last_checked_at = now
                 await self._session.commit()
 
                 if (
-                        result.status_changed
+                        self._notification_service
                         and result.notify_payload
                         and site.user.telegram_chat_id
                 ):
-                    await self._notification_service.notify(
+                    try:
+                        await self._notification_service.notify(
                         payload=result.notify_payload,
                         chat_id=site.user.telegram_chat_id,
                         session=self._session,
-                    )
+                        )
+                    except Exception:
+                        logger.exception("Notification failed AFTER commit (site_id=%s, payload=%s)",
+                            site_id,
+                            result.notify_payload
+                            )
 
-                logger.info("Finished check for site %s", site_id)
+                logger.info("Finished check for site %s (status_changed=%s)", site_id, result.status_changed)
 
             except Exception:
                 logger.exception("Check failed for site %s", site_id)

@@ -4,21 +4,6 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 });
 
-let isRefreshing = false;
-let failedQueue: any[] = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach(prom => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-
-  failedQueue = [];
-};
-
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access_token");
   if (token) {
@@ -32,8 +17,13 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    if (!error.response) {
+      console.error("CORS or network error");
+      return Promise.reject(error);
+    }
+
     if (
-      error.response?.status === 401 &&
+      error.response.status === 401 &&
       !originalRequest._retry &&
       !originalRequest.url?.includes("/auth/login") &&
       !originalRequest.url?.includes("/auth/register") &&
@@ -62,12 +52,12 @@ api.interceptors.response.use(
           `Bearer ${res.data.access_token}`;
 
         return api(originalRequest);
-      } catch {
+      } catch (err) {
         localStorage.clear();
         window.location.href = "/login";
+        return Promise.reject(err);
       }
     }
-
     return Promise.reject(error);
   }
 );

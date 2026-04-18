@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from app.core.http_client import client
+from app.core.http_client import close_http_client
 from app.core.database import AsyncSessionLocal
 from app.core.config import settings
 from app.services.monitoring_service import MonitoringService
@@ -46,7 +46,7 @@ async def lifespan(app: FastAPI):
 
     app.state.scheduler = scheduler
 
-    notification_service = NotificationService(bot)
+    notification_service = NotificationService(bot) if bot else None
 
     monitoring_service = MonitoringService(
         scheduler=scheduler,
@@ -55,11 +55,15 @@ async def lifespan(app: FastAPI):
 
     app.state.monitoring_service = monitoring_service
 
-    polling_task = asyncio.create_task(
-        dp.start_polling(bot, skip_updates=True)
-    )
+    polling_task = None
 
-    logger.info("Telegram bot polling started")
+    if bot and dp:
+        polling_task = asyncio.create_task(
+            dp.start_polling(bot, skip_updates=True)
+        )
+        logger.info("Telegram bot polling started")
+    else:
+        logger.info("Telegram bot disabled (no token)")
 
     async def retention_job():
         async with AsyncSessionLocal() as session:
@@ -74,27 +78,33 @@ async def lifespan(app: FastAPI):
         retention_job,
         trigger="cron",
         hour=1,
+        timezone="UTC",
         id="retention_cleanup",
         replace_existing=True,
     )
 
     async with AsyncSessionLocal() as session:
-        await monitoring_service.bootstrap_active_sites(session=session)
+        try:
+            await monitoring_service.bootstrap_active_sites(session=session)
+        except Exception:
+            logger.exception("Bootstrap failed")
 
     yield
 
-    logger.info("Shutting down polling...")
-    polling_task.cancel()
-    try:
-        await polling_task
-    except asyncio.CancelledError:
-        pass
+    if polling_task:
+        logger.info("Shutting down polling...")
+        polling_task.cancel()
+        try:
+            await polling_task
+        except asyncio.CancelledError:
+            pass
 
     logger.info("Shutting down scheduler...")
     scheduler.shutdown(wait=False)
 
-    await bot.session.close()
-    await client.aclose()
+    if bot:
+        await bot.session.close()
+    await close_http_client()
 
     logger.info("Application shutdown complete")
 
@@ -105,10 +115,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "https://webmonitorsc.vercel.app",
-    ],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -226,3 +233,4 @@ async def handle_invalid_logout(_, __):
         status_code=401,
         content={"detail": "Invalid logout token"},
     )
+

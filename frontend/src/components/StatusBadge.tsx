@@ -1,27 +1,35 @@
+import type { SiteStatus } from "../types/api";
+
 interface Props {
-  status: "UP" | "DOWN" | null;
+  status: SiteStatus | null;
 }
 
 export default function StatusBadge({ status }: Props) {
-  if (!status) {
-    return (
-      <span className="px-3 py-1 text-xs rounded-full bg-yellow-100 text-yellow-700">
-        Невідомо
-      </span>
-    );
-  }
+  const map: Record<SiteStatus, string> = {
+    UP: "bg-green-100 text-green-700",
+    DOWN: "bg-red-100 text-red-700",
+    TIMEOUT: "bg-yellow-100 text-yellow-700",
+    ERROR: "bg-orange-100 text-orange-700",
+    UNKNOWN: "bg-gray-100 text-gray-600",
+  };
 
-  if (status === "UP") {
-    return (
-      <span className="px-3 py-1 text-xs rounded-full bg-green-100 text-green-700">
-        UP
-      </span>
-    );
-  }
+  const label: Record<SiteStatus, string> = {
+    UP: "Працює",
+    DOWN: "Недоступний",
+    TIMEOUT: "Таймаут",
+    ERROR: "Помилка",
+    UNKNOWN: "Невідомо",
+  };
 
-  return (
-    <span className="px-3 py-1 text-xs rounded-full bg-red-100 text-red-700">
-      DOWN
-    </span>
-  );
+const s: SiteStatus = status ?? "UNKNOWN";
+
+if (!status) {
+  return <span className="text-gray-400 text-xs">—</span>;
+}
+
+return (
+  <span className={`px-3 py-1 text-xs rounded-full ${map[s]}`}>
+    {label[s]}
+  </span>
+);
 }

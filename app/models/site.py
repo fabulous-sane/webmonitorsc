@@ -85,3 +85,8 @@ class Site(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+    last_checked_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+    )

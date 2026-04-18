@@ -1,5 +1,6 @@
 import { useState } from "react";
 import api from "../api/axios";
+import { CONFIG } from "../config";
 
 interface Props {
   onClose: () => void;
@@ -14,13 +15,20 @@ export default function AddSiteModal({ onClose, onCreated }: Props) {
   const [loading, setLoading] = useState(false);
 
   const handleCreate = async () => {
-    if (!name || !url) {
+    if (!name.trim() || !url.trim()) {
       setError("Всі поля мають бути заповнені!");
       return;
     }
 
-    if (interval < 30) {
-      setError("Мінімальний інтервал - 30 секунд");
+    try {
+      new URL(url);
+    } catch {
+      setError("Некоректний URL");
+      return;
+    }
+
+    if (interval < CONFIG.MIN_CHECK_INTERVAL) {
+      setError(`Мінімальний інтервал - ${CONFIG.MIN_CHECK_INTERVAL} секунд`);
       return;
     }
 
@@ -35,8 +43,14 @@ export default function AddSiteModal({ onClose, onCreated }: Props) {
 
       onCreated();
       onClose();
-    } catch {
-      setError("Не вдалося створити перевірку.");
+    } catch (err: any) {
+      if (err.response?.status === 409) {
+        setError("Сайт вже існує");
+      } else if (err.response?.status === 403) {
+        setError("Досягнуто ліміт сайтів");
+      } else {
+        setError("Помилка сервера");
+      }
     } finally {
       setLoading(false);
     }
@@ -74,22 +88,19 @@ export default function AddSiteModal({ onClose, onCreated }: Props) {
 
           <input
             type="number"
-            min={30}
+            min={CONFIG.MIN_CHECK_INTERVAL}
             value={interval}
             onChange={(e) => setInterval(Number(e.target.value))}
             className="w-full border p-2 rounded mt-1"
           />
 
           <div className="text-xs text-gray-400 mt-1">
-            Мінімум: 30 секунд
+            Мінімум: {CONFIG.MIN_CHECK_INTERVAL} секунд
           </div>
         </div>
 
         <div className="flex justify-end gap-3 pt-2">
-          <button
-            onClick={onClose}
-            className="text-gray-500"
-          >
+          <button onClick={onClose} className="text-gray-500">
             Відмінити
           </button>
 

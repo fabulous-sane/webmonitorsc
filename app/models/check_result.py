@@ -1,10 +1,11 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Enum as SQLEnum, desc
+from sqlalchemy import Enum as SQLEnum, desc, Text
 from sqlalchemy import (
     Integer,
     ForeignKey,
     TIMESTAMP,
+    Boolean,
     Index,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -48,6 +49,20 @@ class CheckResult(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+    ssl_expires_at: Mapped[datetime | None] = mapped_column(
+        TIMESTAMP(timezone=True),
+        nullable=True
+    )
+
+    ssl_valid: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True
+    )
+
+    ssl_days_left: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    ssl_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ssl_warning: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     __table_args__ = (
         Index(

@@ -5,53 +5,55 @@ import Header from "../components/Header";
 import TelegramConnect from "../components/TelegramConnect";
 import AddSiteModal from "../components/AddSiteModal";
 import SystemSummary from "../components/SystemSummary";
+import { isProblem } from "../types/status";
+import type { DashboardItem, SiteStatus } from "../types/api";
 
-interface DashboardItem {
-  site_id: string;
-  name: string;
-  url: string;
-  last_status: "UP" | "DOWN" | null;
-  uptime_24h: number;
-  uptime_7d: number;
-  uptime_30d: number;
-  check_interval: number;
-  last_checked_at: string;
-  is_active: boolean;
-}
+type StatusFilter = "ВСІ" | "UP" | "DOWN" | "ERROR" | "TIMEOUT";
+type ActivityFilter = "ВСІ" | "АКТИВНІ" | "АРХІВОВАНІ";
+type SSLFilter =
+  | "ALL"
+  | "OK"
+  | "WARNING"
+  | "CRITICAL"
+  | "INVALID"
+  | "UNKNOWN";
+
 
 export default function Dashboard() {
   const [sites, setSites] = useState<DashboardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
 
-  const [statusFilter, setStatusFilter] =
-    useState<"ВСІ" | "UP" | "DOWN">("ВСІ");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ВСІ");
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>("ВСІ");
+  const [sslFilter, setSslFilter] = useState<SSLFilter>("ALL");
 
-  const [activityFilter, setActivityFilter] =
-    useState<"ВСІ" | "АКТИВНІ" | "АРХІВОВАНІ">("ВСІ");
+  const sslButtons = [
+  { key: "ALL", label: "ALL" },
+  { key: "OK", label: "OK" },
+  { key: "WARNING", label: "⚠" },
+  { key: "CRITICAL", label: "🔥" },
+  { key: "INVALID", label: "❌" },
+  { key: "UNKNOWN", label: "?" },
+];
 
   const loadSites = async () => {
-    const res = await api.get("/dashboard/overview");
-    setSites(res.data);
+    try {
+      const res = await api.get("/dashboard/overview");
+      setSites(res.data as DashboardItem[]);
+    } catch {
+      setSites([]);
+    }
   };
 
   useEffect(() => {
     loadSites().finally(() => setLoading(false));
 
-    const interval = setInterval(() => {
-      if (document.visibilityState === "visible") {
-        loadSites();
-      }
-    }, 30000);
-
+    const interval = setInterval(loadSites, 30000);
     return () => clearInterval(interval);
   }, []);
 
   if (loading) return <div className="p-10">Завантаження...</div>;
-
-  const total = sites.length;
-  const active = sites.filter(s => s.is_active).length;
-  const archived = sites.filter(s => !s.is_active).length;
 
   let filteredSites = sites;
 
@@ -63,11 +65,30 @@ export default function Dashboard() {
     filteredSites = filteredSites.filter(s => !s.is_active);
   }
 
-  if (statusFilter !== "ВСІ") {
+  if (statusFilter === "DOWN") {
+    filteredSites = filteredSites.filter(s =>
+      isProblem(s.last_status)
+    );
+  } else if (statusFilter !== "ВСІ") {
     filteredSites = filteredSites.filter(
       s => s.last_status === statusFilter
     );
   }
+
+if (sslFilter !== "ALL") {
+  filteredSites = filteredSites.filter(s => {
+    const state = s.ssl_state ?? "no_data";
+    if (sslFilter === "OK") return state === "ok";
+    if (sslFilter === "WARNING") return state === "warning";
+    if (sslFilter === "CRITICAL") return state === "critical";
+    if (sslFilter === "INVALID") return state === "invalid";
+    if (sslFilter === "UNKNOWN") {
+    return state === "unknown" || state === "no_data";
+    }
+
+    return true;
+  });
+}
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
@@ -75,57 +96,59 @@ export default function Dashboard() {
 
       <div className="flex-1 max-w-6xl mx-auto w-full px-8 py-6 flex flex-col space-y-6">
 
-        {/* HEADER ACTION */}
         <div className="flex justify-between items-center">
           <h2 className="text-2xl font-semibold">Дашборд</h2>
 
           <button
             onClick={() => setShowModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow transition"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg shadow"
           >
             + Додати сайт
           </button>
         </div>
 
-        {/* SUMMARY */}
-        <SystemSummary
-          activeSites={active}
-          archivedSites={archived}
-          totalSites={total}
-        />
+        <SystemSummary />
 
-        {/* FILTERS */}
         <div className="flex gap-4 text-sm">
-
           {["ВСІ", "АКТИВНІ", "АРХІВОВАНІ"].map(f => (
             <button
               key={f}
-              onClick={() => setActivityFilter(f as any)}
-              className={`px-4 py-1 rounded-md transition ${
+              onClick={() => setActivityFilter(f as ActivityFilter)}
+              className={`px-4 py-1 rounded-md ${
                 activityFilter === f
-                  ? "bg-blue-600 text-white shadow"
-                  : "bg-gray-200 hover:bg-gray-300"
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-200"
               }`}
             >
-              {f.charAt(0) + f.slice(1).toLowerCase()}
+              {f}
             </button>
           ))}
 
-          <div className="ml-8 flex gap-4 items-center">
-            <span className="text-gray-600">Статус:</span>
+            <div className="ml-8 flex gap-2">
+  {sslButtons.map(b => (
+  <button
+    key={b.key}
+    onClick={() => setSslFilter(b.key as SSLFilter)}
+    className={`px-3 py-1 rounded-md ${
+      sslFilter === b.key
+        ? "bg-purple-600 text-white"
+        : "bg-gray-200"
+    }`}
+  >
+    {b.label}
+  </button>
+))}
+</div>
 
-            {["ВСІ", "UP", "DOWN"].map(s => (
+          <div className="ml-8 flex gap-4">
+            {["ВСІ", "UP", "DOWN", "ERROR", "TIMEOUT"].map(s => (
               <button
                 key={s}
-                onClick={() => setStatusFilter(s as any)}
-                className={`px-3 py-1 rounded-md transition ${
+                onClick={() => setStatusFilter(s as StatusFilter)}
+                className={`px-3 py-1 rounded-md ${
                   statusFilter === s
-                    ? s === "DOWN"
-                      ? "bg-red-600 text-white"
-                      : s === "UP"
-                      ? "bg-green-600 text-white"
-                      : "bg-gray-800 text-white"
-                    : "bg-gray-200 hover:bg-gray-300"
+                    ? "bg-black text-white"
+                    : "bg-gray-200"
                 }`}
               >
                 {s}
@@ -134,13 +157,12 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* SITES */}
         <div className="flex gap-6 flex-1">
-          <div className="flex-1 overflow-y-auto space-y-4 pr-2">
+          <div className="flex-1 overflow-y-auto space-y-4">
 
             {filteredSites.length === 0 && (
               <div className="text-gray-400 text-sm">
-                Немає сайтів за даним фільтром.
+                Немає сайтів
               </div>
             )}
 

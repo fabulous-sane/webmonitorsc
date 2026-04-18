@@ -34,7 +34,6 @@ class SiteService:
         if count >= settings.MAX_SITES_PER_USER:
             raise SiteLimitExceeded()
 
-        # ищем по name
         existing_by_name = await self._repo.get_by_user_and_name(
             user_id=user_id,
             name=name,
@@ -46,6 +45,8 @@ class SiteService:
                 existing_by_name.url = url
                 existing_by_name.check_interval = check_interval
                 existing_by_name.last_status = None
+                existing_by_name.last_checked_at = None
+                existing_by_name.consecutive_failures = 0
                 await self._session.commit()
 
                 if self._monitoring:
@@ -69,6 +70,8 @@ class SiteService:
                 existing_by_url.name = name
                 existing_by_url.check_interval = check_interval
                 existing_by_url.last_status = None
+                existing_by_url.last_checked_at = None
+                existing_by_url.consecutive_failures = 0
                 await self._session.commit()
 
                 if self._monitoring:
@@ -248,10 +251,12 @@ class SiteService:
         uptime_7d = await results_repo.get_uptime_percent(site_id=site.id, hours=168)
         uptime_30d = await results_repo.get_uptime_percent(site_id=site.id, hours=720)
         last_checks = await results_repo.get_last_checks(site_id=site.id, limit=5)
+        ssl = await results_repo.get_latest_ssl(site_id=site.id)
 
         return site, {
             "uptime_24": uptime_24,
             "uptime_7d": uptime_7d,
             "uptime_30d": uptime_30d,
             "last_checks": last_checks,
+            "ssl": ssl
         }

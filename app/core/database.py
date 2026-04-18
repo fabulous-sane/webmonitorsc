@@ -9,14 +9,20 @@ from sqlalchemy.ext.asyncio import (
 from app.core.config import settings
 
 
-database_url = settings.DATABASE_URL.replace(
-    "postgresql://",
-    "postgresql+asyncpg://",
-)
+if settings.DATABASE_URL.startswith("postgresql://"):
+    database_url = settings.DATABASE_URL.replace(
+        "postgresql://",
+        "postgresql+asyncpg://",
+    )
+else:
+    database_url = settings.DATABASE_URL
 
 engine = create_async_engine(
     database_url,
     isolation_level="READ COMMITTED",
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,
 )
 
 AsyncSessionLocal = async_sessionmaker(

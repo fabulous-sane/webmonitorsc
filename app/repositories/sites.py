@@ -40,7 +40,9 @@ class SitesRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_user_and_name(self, user_id: uuid.UUID, name: str):
+    async def get_by_user_and_name(
+            self, user_id: uuid.UUID, name: str
+    ) -> Optional[Site]:
         stmt = select(Site).where(
             Site.user_id == user_id,
             Site.name == name,
@@ -87,7 +89,7 @@ class SitesRepository:
             )
         )
         result = await self.session.execute(stmt)
-        return result.scalar_one()
+        return result.scalar_one_or_none() or 0
 
     async def get_by_id_for_update(self, site_id: uuid.UUID) -> Optional[Site]:
         stmt = (

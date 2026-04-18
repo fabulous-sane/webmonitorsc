@@ -1,5 +1,6 @@
 # app/services/auth_service.py
 
+import logging
 from datetime import timedelta, datetime, timezone
 
 from jose import JWTError, jwt
@@ -20,11 +21,12 @@ from app.security.email_confirmation import (
 from app.services.exceptions import UserAlreadyExists, InvalidCredentials, EmailNotConfirmed, InvalidToken, \
     TokenExpired, InvalidRefreshToken, UserInactive, InvalidLogoutToken
 
+logger = logging.getLogger(__name__)
 
 class AuthService:
     def __init__(self, users_repo: UsersRepository):
         self.users_repo = users_repo
-
+        self.email_service = EmailService()
     async def register(self, email: str, password: str) -> None:
         if len(password) < 6:
             raise ValueError("Password must be at least 6 characters long")
@@ -48,10 +50,13 @@ class AuthService:
             await self.users_repo.session.rollback()
             raise UserAlreadyExists()
 
-        await EmailService.send_confirmation_email(
-            email=user.email,
-            token=token,
-        )
+        try:
+            await self.email_service.send_confirmation_email(
+                email=user.email,
+                token=token,
+            )
+        except Exception:
+            logger.exception("Failed to send confirmation email")
 
     async def login(self, email: str, password: str) -> dict:
         user = await self.users_repo.get_by_email(email)
@@ -121,10 +126,13 @@ class AuthService:
 
         await self.users_repo.session.commit()
 
-        await EmailService.send_confirmation_email(
-            email=user.email,
-            token=token,
-        )
+        try:
+            await self.email_service.send_confirmation_email(
+                email=user.email,
+                token=token,
+            )
+        except Exception:
+            logger.exception("Failed to send confirmation email")
 
         return "confirmation_resent"
 
@@ -142,11 +150,13 @@ class AuthService:
         )
 
         await self.users_repo.session.commit()
-
-        await EmailService.send_password_reset_email(
+        try:
+            await self.email_service.send_password_reset_email(
             email=user.email,
             token=token,
         )
+        except Exception:
+            logger.exception("Failed to send password reset email")
 
     async def reset_password(self, token: str, new_password: str) -> None:
         token_hash = hash_token(token)

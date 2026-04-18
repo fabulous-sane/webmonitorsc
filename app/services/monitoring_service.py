@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -6,6 +7,7 @@ from app.monitoring.scheduler import add_site_job
 from app.repositories.sites import SitesRepository
 from app.services.notification_service import NotificationService
 
+logger = logging.getLogger(__name__)
 
 class MonitoringService:
     def __init__(
@@ -42,9 +44,12 @@ class MonitoringService:
     ) -> None:
         repo = SitesRepository(session)
         sites = await repo.get_active_sites_for_scheduler()
-
+        logger.info("Bootstrapping %d active sites", len(sites))
         for site in sites:
-            self.activate_site(
+            try:
+                self.activate_site(
                 site_id=site.id,
                 interval_seconds=site.check_interval,
             )
+            except Exception:
+                logger.exception("Failed to activate site %s", site.id)

@@ -1,0 +1,4 @@
+export const CONFIG = {
+  MIN_CHECK_INTERVAL: 60,
+  MAX_CHECK_INTERVAL: 3600,
+};

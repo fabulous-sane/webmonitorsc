@@ -4,13 +4,13 @@ import io
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.read_models.export import get_checks_for_export
 from app.security.dependencies import get_current_user
 from app.models.user import User
+from app.repositories.sites import SitesRepository
 
 router = APIRouter(prefix="/export", tags=["export"])
 
@@ -21,13 +21,10 @@ async def export_site_checks(
     session: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Проверяем что сайт вообще существует
-    site_check = await session.execute(
-        text("SELECT id FROM sites WHERE id = :id AND user_id = :uid"),
-        {"id": site_id, "uid": current_user.id},
-    )
+    sites_repo = SitesRepository(session)
+    site = await sites_repo.get_by_id_and_user(site_id, current_user.id)
 
-    if not site_check.first():
+    if not site:
         raise HTTPException(status_code=404, detail="Site not found")
 
     rows = await get_checks_for_export(
@@ -48,9 +45,12 @@ async def export_site_checks(
     ])
 
     for r in rows:
+        status = r["status"]
+        status_value = status.name if hasattr(status, "name") else str(status)
+
         writer.writerow([
             r["checked_at"].isoformat() if r["checked_at"] else "",
-            r["status"],
+            status_value,
             r["status_code"],
             r["response_time_ms"],
         ])

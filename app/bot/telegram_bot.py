@@ -43,32 +43,51 @@ def main_menu():
         resize_keyboard=True,
     )
 
+def get_status_emoji(status: SiteStatus) -> str:
+    return {
+        SiteStatus.UP: "🟢",
+        SiteStatus.DOWN: "🔴",
+        SiteStatus.TIMEOUT: "🟡",
+        SiteStatus.ERROR: "⚠️",
+    }.get(status, "⚪")
+
+def get_status_label(status: SiteStatus) -> str:
+    return {
+        SiteStatus.UP: "Працює",
+        SiteStatus.DOWN: "Недоступний",
+        SiteStatus.TIMEOUT: "Таймаут",
+        SiteStatus.ERROR: "Помилка",
+    }.get(status, "Невідомо")
+
 def ascii_bar(percent: float, width: int = 10) -> str:
+    percent = min(max(percent, 0), 100)
     percent = round(percent, 2)
     filled = int((percent / 100) * width)
     empty = width - filled
     return f"[{'█' * filled}{'░' * empty}] {percent:.2f}%"
 
-
 async def safe_send(chat_id: int, text: str, reply_markup=None):
+    if not bot:
+        logger.warning("Bot not initialized (chat_id=%s)", chat_id)
+        return
     try:
         await bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
     except TelegramForbiddenError:
         logger.warning(f"Bot blocked by user {chat_id}")
-    except Exception as e:
-        logger.error(f"Telegram send failed: {e}")
+    except Exception:
+        logger.exception("Telegram send failed")
 
 async def safe_edit(message: types.Message, text: str, keyboard=None):
     try:
         await message.edit_text(text, reply_markup=keyboard)
-    except TelegramBadRequest:
-        pass
+    except TelegramBadRequest as e:
+        logger.debug("Edit failed: %s", e)
 
 async def safe_callback_answer(callback: CallbackQuery):
     try:
         await callback.answer()
-    except TelegramBadRequest:
-        pass
+    except TelegramBadRequest as e:
+        logger.debug("Callback answer failed: %s", e)
 
 @dp.message(Command("start"))
 async def cmd_start(message: types.Message):
@@ -192,21 +211,20 @@ async def site_details(callback: CallbackQuery):
             uptime_30d = data["uptime_30d"]
             last_checks = data["last_checks"]
 
-            # Last check
             if last_checks:
                 last = last_checks[0]
                 last_time = last.checked_at.strftime("%d.%m %H:%M")
-                status_name = last.status.name
+                status = get_status_label(last.status)
                 last_line = (
                     f"🕒 <b>Остання перевірка:</b>\n"
-                    f"{last_time} | {status_name} | {last.response_time_ms or '-'} ms\n\n"
+                    f"{last_time} | {status} | {last.response_time_ms or '-'} ms\n\n"
                 )
             else:
                 last_line = "🕒 <b>Остання перевірка:</b>\nНемає даних\n\n"
 
             history_lines = []
             for row in last_checks:
-                emoji = "🟢" if row.status == SiteStatus.UP else "🔴"
+                emoji = get_status_emoji(row.status)
                 time_str = row.checked_at.strftime("%H:%M:%S")
                 history_lines.append(
                     f"{emoji} {time_str} | {row.response_time_ms or '-'} ms"
@@ -214,15 +232,9 @@ async def site_details(callback: CallbackQuery):
 
             history_text = "\n".join(history_lines) if history_lines else "Немає даних"
 
-            if site.last_status == SiteStatus.UP:
-                emoji = "🟢"
-                status = "Працює"
-            elif site.last_status == SiteStatus.DOWN:
-                emoji = "🔴"
-                status = "Недоступний"
-            else:
-                emoji = "⚪"
-                status = "Невідомо"
+            emoji = get_status_emoji(site.last_status)
+
+            status = get_status_label(site.last_status)
 
             text = (
                 f"{emoji} <b>{escape(site.name)}</b>\n\n"
@@ -237,6 +249,16 @@ async def site_details(callback: CallbackQuery):
                 f"📉 <b>Останні 5 перевірок:</b>\n"
                 f"{history_text}"
             )
+
+            ssl_info = data.get("ssl")
+
+            if ssl_info:
+                if ssl_info["ssl_warning"] == "critical":
+                    text += f"\n\n🔴 <b>SSL:</b> закінчується ({ssl_info['ssl_days_left']} днів)"
+                elif ssl_info["ssl_warning"] == "warning":
+                    text += f"\n\n🟡 <b>SSL:</b> скоро закінчиться ({ssl_info['ssl_days_left']} днів)"
+                elif ssl_info["ssl_valid"] is False:
+                    text += f"\n\n❌ <b>SSL:</b> недійсний"
 
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[

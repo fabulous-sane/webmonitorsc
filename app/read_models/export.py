@@ -4,6 +4,7 @@ from typing import Sequence, Mapping, Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+
 async def get_checks_for_export(
     *,
     session: AsyncSession,
@@ -28,13 +29,30 @@ async def get_checks_for_export(
             cr.checked_at,
             cr.status,
             cr.status_code,
-            cr.response_time_ms
+            cr.response_time_ms,
+
+            cr.ssl_valid,
+            cr.ssl_days_left,
+            cr.ssl_warning,
+            cr.ssl_expires_at,
+            cr.ssl_error,
+
+            CASE 
+                WHEN cr.ssl_valid IS NULL THEN 'unknown'
+                WHEN cr.ssl_warning = 'critical' THEN 'critical'
+                WHEN cr.ssl_warning = 'warning' THEN 'warning'
+                WHEN cr.ssl_valid = false THEN 'invalid'
+                ELSE 'ok'
+            END AS ssl_state
+
         FROM check_results cr
         JOIN sites s ON s.id = cr.site_id
+
         WHERE
             cr.site_id = :site_id
             AND s.user_id = :user_id
             AND cr.checked_at >= :cutoff
+
         ORDER BY cr.checked_at ASC
         LIMIT 10000
     """)

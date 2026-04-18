@@ -14,11 +14,30 @@ class NotificationService:
         self._bot = bot
 
     @staticmethod
-    def _format_status(payload: NotifyPayload) -> str:
-        old = payload.old_status.name if payload.old_status else "UNKNOWN"
-        new = payload.new_status.name
+    def get_status_label(status: str) -> str:
+        return {
+            "UP": "Працює",
+            "DOWN": "Недоступний",
+            "TIMEOUT": "Таймаут",
+            "ERROR": "Помилка",
+        }.get(status, status)
 
-        emoji = "🟢" if new == "UP" else "🔴"
+    @staticmethod
+    def _format_status(payload: NotifyPayload) -> str:
+        status_raw = payload.new_status.name
+
+        emoji = {
+            "UP": "🟢",
+            "DOWN": "🔴",
+            "TIMEOUT": "🟡",
+            "ERROR": "⚠️",
+        }.get(status_raw, "⚪")
+
+        old_raw = payload.old_status.name if payload.old_status else None
+        new_raw = payload.new_status.name
+
+        old = NotificationService.get_status_label(old_raw) if old_raw else "Невідомо"
+        new = NotificationService.get_status_label(new_raw)
 
         lines = [
             f"{emoji} <b>Зміна статусу сайту</b>",
@@ -34,6 +53,20 @@ class NotificationService:
         if payload.response_time_ms is not None:
             lines.append(f"<b>Response:</b> {payload.response_time_ms} ms")
 
+        if payload.ssl_warning:
+            if payload.ssl_warning == "critical":
+                lines.append(
+                    f"🔴 <b>SSL:</b> закінчується через {payload.ssl_days_left} днів"
+                )
+            elif payload.ssl_warning == "warning":
+                lines.append(
+                    f"🟡 <b>SSL:</b> скоро закінчиться ({payload.ssl_days_left} днів)"
+                )
+        elif payload.ssl_days_left is not None:
+            lines.append(
+                f"🟢 <b>SSL:</b> дійсний ({payload.ssl_days_left} днів)"
+            )
+
         return "\n".join(lines)
 
     async def notify(
@@ -45,8 +78,12 @@ class NotificationService:
     ) -> None:
         message = self._format_status(payload)
 
+        if self._bot is None:
+            logger.warning("Bot not initialized (chat_id=%s)", chat_id)
+            return
+
         try:
-            await self._bot.send_message(chat_id=chat_id, text=message)
+            await self._bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
 
         except TelegramForbiddenError:
             logger.warning(
@@ -59,9 +96,10 @@ class NotificationService:
 
             if user:
                 user.telegram_chat_id = None
+                await session.commit()
 
         except TelegramBadRequest as e:
-            logger.warning("TelegramBadRequest: %s", e)
+            logger.warning("TelegramBadRequest (chat_id=%s): %s", chat_id, e)
 
-        except Exception as e:
-            logger.error("Unexpected Telegram error: %s", e)
+        except Exception:
+            logger.exception("Unexpected Telegram error")

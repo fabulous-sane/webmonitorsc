@@ -1,9 +1,10 @@
 # app/api/v1/dashboard.py
 from uuid import UUID
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.security.dependencies import get_current_user
+from app.repositories.sites import SitesRepository
 
 from app.core.database import get_db
 from app.read_models.dashboard_stats import (
@@ -23,7 +24,6 @@ async def dashboard_overview(
         user_id=current_user.id,
     )
 
-
 @router.get("/site/{site_id}")
 async def dashboard_site(
     site_id: UUID,
@@ -31,10 +31,16 @@ async def dashboard_site(
     current_user: User = Depends(get_current_user),
     range: str = Query("24h", pattern="^(24h|7d|30d)$"),
 ):
-        checks = await get_site_checks(
-            session=session,
-            site_id=site_id,
-            user_id=current_user.id,
-            range=range,
-        )
-        return checks
+    repo = SitesRepository(session)
+    site = await repo.get_by_id_and_user(site_id, current_user.id)
+
+    if not site:
+        raise HTTPException(status_code=404, detail="Site not found")
+
+    checks = await get_site_checks(
+        session=session,
+        site_id=site_id,
+        user_id=current_user.id,
+        range=range,
+    )
+    return checks
