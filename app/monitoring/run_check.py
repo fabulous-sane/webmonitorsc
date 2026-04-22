@@ -30,7 +30,7 @@ class CheckRawResult:
     ssl_expires_at: datetime | None = None
     ssl_days_left: int | None = None
     ssl_error: str | None = None
-
+    ssl_warning: str | None = None
 
 async def _is_private_host(host: str | None) -> bool:
     if not host:
@@ -60,20 +60,27 @@ async def _is_private_host(host: str | None) -> bool:
 
 def _map_ssl(
     ssl_data: Optional[dict],
-) -> Tuple[Optional[bool], Optional[datetime], Optional[int], Optional[str]]:
+) -> Tuple[Optional[bool], Optional[datetime], Optional[int], Optional[str], Optional[str]]:
     if ssl_data is None:
-        return None, None, None, None
+        return None, None, None, None, None
 
     return (
-        ssl_data.get("ssl_valid"),
-        ssl_data.get("ssl_expires_at"),
-        ssl_data.get("ssl_days_left"),
-        ssl_data.get("ssl_error"),
+        ssl_data.get("ssl_valid", None),
+        ssl_data.get("ssl_expires_at", None),
+        ssl_data.get("ssl_days_left", None),
+        ssl_data.get("ssl_error", None),
+        ssl_data.get("ssl_warning", None),
     )
 
 async def _safe_ssl(host: str | None, scheme: str):
     if not host or scheme != "https":
-        return None
+        return {
+            "ssl_valid": None,
+            "ssl_expires_at": None,
+            "ssl_days_left": None,
+            "ssl_warning": None,
+            "ssl_error": None,
+        }
 
     return await get_ssl_info(host)
 
@@ -100,10 +107,10 @@ async def run_check(url: str) -> CheckRawResult:
             if await _is_private_host(host):
                 return CheckRawResult(False, None, None, "blocked_private_ip")
 
-            if ssl_data is None:
+            if ssl_data is None and final_url.scheme == "https":
                 ssl_data = await _safe_ssl(host, final_url.scheme)
 
-            ssl_valid, ssl_expires_at, ssl_days_left, ssl_error = _map_ssl(ssl_data)
+            ssl_valid, ssl_expires_at, ssl_days_left, ssl_error, ssl_warning = _map_ssl(ssl_data)
 
             return CheckRawResult(
                 reachable=True,
@@ -114,6 +121,7 @@ async def run_check(url: str) -> CheckRawResult:
                 ssl_expires_at=ssl_expires_at,
                 ssl_days_left=ssl_days_left,
                 ssl_error=ssl_error,
+                ssl_warning=ssl_warning,
             )
 
         except (httpx.TimeoutException, httpx.ConnectError, httpx.RequestError) as e:
@@ -126,10 +134,10 @@ async def run_check(url: str) -> CheckRawResult:
                     if isinstance(e, httpx.ConnectError)
                     else "request_error"
                 )
-                if ssl_data is None:
+                if ssl_data is None and parsed.scheme == "https":
                     ssl_data = await _safe_ssl(parsed.hostname, parsed.scheme)
 
-                ssl_valid, ssl_expires_at, ssl_days_left, ssl_error = _map_ssl(ssl_data)
+                ssl_valid, ssl_expires_at, ssl_days_left, ssl_error, ssl_warning = _map_ssl(ssl_data)
 
                 return CheckRawResult(
                     reachable=False,
@@ -140,6 +148,7 @@ async def run_check(url: str) -> CheckRawResult:
                     ssl_expires_at=ssl_expires_at,
                     ssl_days_left=ssl_days_left,
                     ssl_error=ssl_error,
+                    ssl_warning=ssl_warning,
                 )
 
             await asyncio.sleep(settings.BACKOFF_BASE * (2 ** attempt))
@@ -147,7 +156,7 @@ async def run_check(url: str) -> CheckRawResult:
     if ssl_data is None:
         ssl_data = await _safe_ssl(parsed.hostname, parsed.scheme)
 
-    ssl_valid, ssl_expires_at, ssl_days_left, ssl_error = _map_ssl(ssl_data)
+    ssl_valid, ssl_expires_at, ssl_days_left, ssl_error, ssl_warning = _map_ssl(ssl_data)
 
     return CheckRawResult(
         False,
@@ -158,4 +167,5 @@ async def run_check(url: str) -> CheckRawResult:
         ssl_expires_at,
         ssl_days_left,
         ssl_error,
+        ssl_warning,
     )

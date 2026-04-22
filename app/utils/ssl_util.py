@@ -5,8 +5,18 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
+from app.core.config import settings
+
 logger = logging.getLogger(__name__)
 
+def compute_ssl_warning(days_left: int | None) -> str | None:
+    if days_left is None:
+        return None
+    if days_left <= settings.SSL_CRITICAL_DAYS:
+        return "critical"
+    if days_left <= settings.SSL_WARNING_DAYS:
+        return "warning"
+    return None
 
 def _get_ssl_info_sync(hostname: str, port: int = 443):
     if not hostname:
@@ -34,14 +44,15 @@ def _get_ssl_info_sync(hostname: str, port: int = 443):
     is_expired = expires_at <= now
     delta = expires_at - now
     days_left = max(math.ceil(delta.total_seconds() / 86400), 0)
+    warning = compute_ssl_warning(days_left)
 
     return {
         "ssl_valid": not is_expired,
         "ssl_expires_at": expires_at,
         "ssl_days_left": days_left,
+        "ssl_warning": warning,
         "ssl_error": None,
     }
-
 
 async def get_ssl_info(hostname: str):
     try:
@@ -51,19 +62,37 @@ async def get_ssl_info(hostname: str):
         )
 
     except asyncio.TimeoutError:
-        logger.warning(f"SSL timeout for {hostname}")
         return {
-            "ssl_valid": None,
+            "ssl_valid": False,
             "ssl_expires_at": None,
             "ssl_days_left": None,
+            "ssl_warning": None,
             "ssl_error": "timeout",
         }
 
-    except Exception as e:
-        logger.warning(f"SSL check failed for {hostname}: {e}")
+    except ssl.SSLCertVerificationError:
         return {
-            "ssl_valid": None,
+            "ssl_valid": False,
             "ssl_expires_at": None,
             "ssl_days_left": None,
-            "ssl_error": str(e)[:120],
+            "ssl_warning": None,
+            "ssl_error": "cert_invalid",
+        }
+
+    except ssl.SSLError:
+        return {
+            "ssl_valid": False,
+            "ssl_expires_at": None,
+            "ssl_days_left": None,
+            "ssl_warning": None,
+            "ssl_error": "ssl_error",
+        }
+
+    except Exception:
+        return {
+            "ssl_valid": False,
+            "ssl_expires_at": None,
+            "ssl_days_left": None,
+            "ssl_warning": None,
+            "ssl_error": "unknown",
         }

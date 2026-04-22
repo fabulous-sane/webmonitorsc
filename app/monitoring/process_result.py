@@ -52,18 +52,12 @@ async def process_check_result(
         raw_status = SiteStatus.UP
     elif raw.status_code and raw.status_code >= 500:
         raw_status = SiteStatus.DOWN
-    elif raw.status_code and raw.status_code >= 400:
+    elif raw.status_code is not None and raw.status_code >= 400:
         raw_status = SiteStatus.ERROR
     else:
         raw_status = SiteStatus.UP
 
-    ssl_warning = None
-
-    if raw.ssl_days_left is not None:
-        if raw.ssl_days_left <= settings.SSL_CRITICAL_DAYS:
-            ssl_warning = "critical"
-        elif raw.ssl_days_left <= settings.SSL_WARNING_DAYS:
-            ssl_warning = "warning"
+    latest_ssl = await results_repo.get_latest_ssl(site_id=site.id)
 
     await checks_repo.add_result(
         site_id=site.id,
@@ -73,8 +67,7 @@ async def process_check_result(
         ssl_valid=raw.ssl_valid,
         ssl_expires_at=raw.ssl_expires_at,
         ssl_days_left=raw.ssl_days_left,
-        ssl_error=raw.ssl_error,
-        ssl_warning=ssl_warning,
+        ssl_warning=raw.ssl_warning,
     )
 
     threshold = (
@@ -102,17 +95,19 @@ async def process_check_result(
     if status_changed:
         site.last_status = raw_status
 
-    latest_ssl = await results_repo.get_latest_ssl(site_id=site.id)
-
     def _ssl_state(valid, warning):
-        if valid is None and warning is None:
+        if valid is None:
             return "no_data"
+
         if warning == "critical":
             return "critical"
+
         if warning == "warning":
             return "warning"
+
         if valid is False:
             return "invalid"
+
         return "ok"
 
     prev_state = (
@@ -121,7 +116,7 @@ async def process_check_result(
         else "no_data"
     )
 
-    curr_state = _ssl_state(raw.ssl_valid, ssl_warning)
+    curr_state = _ssl_state(raw.ssl_valid, raw.ssl_warning)
 
     ssl_changed = (
             curr_state != prev_state
@@ -139,7 +134,7 @@ async def process_check_result(
             new_status=raw_status,
             status_code=raw.status_code,
             response_time_ms=raw.response_time_ms,
-            ssl_warning=ssl_warning,
+            ssl_warning=raw.ssl_warning,
             ssl_days_left=raw.ssl_days_left,
         )
 
