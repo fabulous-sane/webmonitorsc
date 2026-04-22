@@ -46,7 +46,7 @@ async def system_status(
 
     cutoff = now - timedelta(days=settings.RETENTION_DAYS)
 
-    delay_threshold = timedelta(hours=settings.RETENTION_RUN_THRESHOLD_HOURS)
+    delay_threshold = timedelta(hours=settings.RETENTION_DELAY_THRESHOLD_HOURS)
 
     retention_never_run = last_run is None
     retention_broken = next_run is None
