@@ -126,14 +126,14 @@ SELECT
   date_trunc('minute', cr.checked_at) AS bucket,
   AVG(cr.response_time_ms) AS response_time_ms,
   BOOL_OR(cr.ssl_valid) AS ssl_valid,
-  MAX(cr.ssl_days_left) AS ssl_days_left,
+  MIN(cr.ssl_days_left) AS ssl_days_left,
   MAX(cr.ssl_warning) AS ssl_warning,
 
-  CASE
+ CASE
   WHEN MAX(cr.ssl_warning) = 'critical' THEN 'critical'
   WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warning'
-  WHEN BOOL_OR(cr.ssl_valid) = false THEN 'invalid'
-  WHEN BOOL_OR(cr.ssl_valid) = true THEN 'ok'
+  WHEN BOOL_OR(cr.ssl_valid = false) THEN 'invalid'
+  WHEN BOOL_OR(cr.ssl_valid = true) THEN 'ok'
   ELSE 'no_data'
 END AS ssl_state,
 

@@ -61,6 +61,7 @@ async def system_status(
         "ssl_critical_sites": data.get("ssl_critical_sites", 0),
         "ssl_warning_sites": data.get("ssl_warning_sites", 0),
         "ssl_invalid_sites": data.get("ssl_invalid_sites", 0),
+        "ssl_ok_sites": data.get("ssl_ok_sites", 0),
 
         "checks_24h": data.get("checks_24h", 0),
 
