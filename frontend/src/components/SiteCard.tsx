@@ -97,7 +97,7 @@ const chartData = useMemo(() => {
   if (!rawData.length) return []
 
   return rawData.map(c => ({
-    time: new Date(c.checked_at).getTime(),
+    time: new Date(c.bucket).getTime(),
     response_time: c.response_time_ms ?? null,
     status: c.status,
     ssl_state: c.ssl_state,
@@ -331,10 +331,7 @@ const handleExport = async () => {
 
     const p = payload[0].payload;
     const state = p.ssl_state ?? "no_data";
-    const sev =
-    p.ssl_state === "no_data"
-    ? "warn"
-    : p.ssl_severity ?? "good";
+    const sev = p.ssl_severity ?? "good";
 
     return (
       <div className="bg-white p-2 border rounded shadow text-xs">
