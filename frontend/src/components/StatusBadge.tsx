@@ -23,8 +23,8 @@ if (!status) {
   return <span className="text-gray-400 text-xs">—</span>;
 }
 
-const cls = map[status]
-const text = label[status]
+const cls = map[status] ?? "bg-gray-100 text-gray-500"
+const text = label[status] ?? "Unknown"
 
 return (
   <span className={`px-3 py-1 text-xs rounded-full ${cls}`}>

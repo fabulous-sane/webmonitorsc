@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import random
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -67,12 +68,16 @@ async def lifespan(app: FastAPI):
 
     async def retention_job():
         async with AsyncSessionLocal() as session:
-            deleted = await cleanup_old_checks(
-                session=session,
-                keep_days=settings.RETENTION_DAYS,
-            )
-            await session.commit()
-            logger.info("Retention cleanup removed %s rows", deleted)
+            try:
+                deleted = await cleanup_old_checks(
+                    session=session,
+                    keep_days=settings.RETENTION_DAYS,
+                )
+                await session.commit()
+                logger.info("Retention cleanup removed %s rows", deleted)
+            except Exception:
+                await session.rollback()
+                logger.exception("Retention failed")
 
     scheduler.add_job(
         retention_job,
@@ -81,8 +86,11 @@ async def lifespan(app: FastAPI):
         timezone="UTC",
         id="retention_cleanup",
         replace_existing=True,
+        max_instances=1,
+        coalesce=True,
+        misfire_grace_time=300,
+        second=random.randint(0, 59)
     )
-
     async with AsyncSessionLocal() as session:
         try:
             await monitoring_service.bootstrap_active_sites(session=session)

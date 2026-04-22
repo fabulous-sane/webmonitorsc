@@ -6,4 +6,3 @@ class SiteStatus(str, Enum):
     DOWN = "DOWN"
     TIMEOUT = "TIMEOUT"
     ERROR = "ERROR"
-    UNKNOWN = "UNKNOWN"

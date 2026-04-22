@@ -62,8 +62,9 @@ export default function SiteCard({
   const [intervalEdit, setIntervalEdit] = useState(check_interval);
   const isHttpBad = last_status ? isProblem(last_status) : false
 
-  const state = ssl_state ?? "no_data"
-  const severity = ssl_severity ?? "good"
+  const state = ssl_state
+  const severity = ssl_severity
+  const hasSSL = ssl_state && ssl_state !== "no_data"
 
   const sslLabels: Record<SSLState, string> = {
   critical: "🔥 Критично",
@@ -96,8 +97,10 @@ const statusLabels: Record<SiteStatus, string> = {
 const chartData = useMemo(() => {
   if (!rawData.length) return []
 
-  return rawData.map(c => ({
-    time: new Date(c.bucket).getTime(),
+  return rawData
+  .filter(c => c.bucket)
+  .map(c => ({
+    time: new Date(c.bucket!).getTime(),
     response_time: c.response_time_ms ?? null,
     status: c.status,
     ssl_state: c.ssl_state,
@@ -156,25 +159,25 @@ const handleExport = async () => {
 
   return (
     <div
-  className={`rounded-xl p-5 shadow border-2 transition ${
-    archived
-  ? "bg-gray-50 border-gray-400 opacity-80"
-  : isHttpBad
-  ? "bg-red-50 border-red-600"
-: state === "no_data"
-? "bg-gray-50 border-gray-300"
-: severity === "bad"
-? "bg-red-50 border-red-500"
-: severity === "warn"
-? "bg-yellow-50 border-yellow-400"
-: "bg-white border-gray-500"
-  }`}
+className={`rounded-xl p-5 shadow border-2 transition ${
+  archived
+    ? "bg-gray-50 border-gray-400 opacity-80"
+    : isHttpBad
+    ? "bg-red-50 border-red-600"
+    : !hasSSL
+    ? "bg-gray-50 border-gray-300"
+    : severity === "bad"
+    ? "bg-red-50 border-red-500"
+    : severity === "warn"
+    ? "bg-yellow-50 border-yellow-400"
+    : "bg-white border-gray-300"
+}`}
 >
   <div className="flex items-center gap-2">
 
   <StatusBadge status={last_status} />
 
-{state === "no_data" ? (
+{!hasSSL ? (
   <span className="text-gray-400 text-xs">⭕ SSL</span>
 ) : severity === "bad" ? (
   <span className="text-red-600 text-xs">🔥 SSL</span>
@@ -226,7 +229,7 @@ const handleExport = async () => {
             <button
             onClick={handleExport}
             className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
-            Експорт у CSV
+            Експорт CSV
             </button>
           {archived ? (
             <button
@@ -329,9 +332,10 @@ const handleExport = async () => {
   content={({ active, payload }) => {
     if (!active || !payload?.length) return null;
 
-    const p = payload[0].payload;
+    const p = payload?.[0]?.payload;
+    if (!p) return null;
     const state = p.ssl_state ?? "no_data";
-    const sev = p.ssl_severity ?? "good";
+    const sev = p.ssl_severity ?? null;
 
     return (
       <div className="bg-white p-2 border rounded shadow text-xs">
@@ -340,17 +344,18 @@ const handleExport = async () => {
         <div>⏱ {p.response_time ?? "—"} ms</div>
 
         <div>
-          Status: {p.status ? statusLabels[p.status] : "—"}
+          Status: {p.status ? (statusLabels[p.status as SiteStatus] ?? "—") : "—"}
         </div>
 
         <div>
-          🔐 SSL: {sslLabels[state] ?? "—"}
+          🔐 SSL: {sslLabels[state as SSLState] ?? "—"}
         </div>
 
         <div>
-          {sev === "bad" && "🔥 Problem"}
-          {sev === "warn" && "⚠ Warning"}
-          {sev === "good" && "✅ OK"}
+            {!sev && "No SSL data"}
+            {sev === "bad" && "🔥 Problem"}
+            {sev === "warn" && "⚠ Warning"}
+            {sev === "good" && "✅ OK"}
         </div>
 
         {p.ssl_days_left != null && (
@@ -387,7 +392,14 @@ const handleExport = async () => {
 }
 function SLA({ label, value }: { label: string; value: number }) {
   let color = "text-gray-700";
-
+  if (value === undefined || value === null) {
+  return (
+    <div>
+      <div className="text-gray-500">SLA ({label})</div>
+      <div className="text-gray-400">—</div>
+    </div>
+  )
+}
   if (value < 90) color = "text-red-600";
   else if (value < 97) color = "text-yellow-600";
   else color = "text-green-600";

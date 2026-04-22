@@ -48,6 +48,8 @@ async def process_check_result(
         raw_status = SiteStatus.TIMEOUT
     elif raw.error_type in ("connection_error", "request_error"):
         raw_status = SiteStatus.ERROR
+    elif raw.status_code in (403, 401):
+        raw_status = SiteStatus.UP
     elif raw.status_code and raw.status_code >= 500:
         raw_status = SiteStatus.DOWN
     elif raw.status_code and raw.status_code >= 400:
@@ -121,23 +123,9 @@ async def process_check_result(
 
     curr_state = _ssl_state(raw.ssl_valid, ssl_warning)
 
-    def _priority(state: str) -> int:
-        return {
-            "critical": 4,
-            "warning": 3,
-            "invalid": 2,
-            "unknown": 1,
-            "ok": 0,
-            "no_data": -1,
-        }[state]
-
     ssl_changed = (
             curr_state != prev_state
-            and prev_state != "no_data"
-            and (
-                    _priority(curr_state) > _priority(prev_state)
-                    or curr_state == "ok"
-            )
+            and not (curr_state == "no_data" and prev_state == "no_data")
     )
 
     notify_payload = None

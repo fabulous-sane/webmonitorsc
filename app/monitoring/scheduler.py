@@ -26,7 +26,7 @@ def add_site_job(
         except Exception:
             logger.exception("Check job failed for %s", site_id)
 
-    jitter = random.randint(0, min(5, interval_seconds // 5))
+    jitter = random.randint(0, min(30, interval_seconds // 2))
 
     scheduler.add_job(
         job,

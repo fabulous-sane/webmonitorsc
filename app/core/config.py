@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     BACKOFF_BASE: float = 0.5
     MIN_CHECK_INTERVAL: int = 60
     MAX_CHECK_INTERVAL: int = 3600
+    RETENTION_DELAY_THRESHOLD_HOURS: int = 6
+    MAX_DELETE: int = 100_000
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 360
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     MAX_SITES_PER_USER: int = 20

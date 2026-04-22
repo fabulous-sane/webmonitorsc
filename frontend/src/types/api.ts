@@ -34,11 +34,13 @@ export interface DashboardItem {
 
 export interface Check {
   checked_at: string;
-  status: SiteStatus;
+  bucket: string;
+  status?: SiteStatus | null;
   response_time_ms: number | null;
 
   ssl_valid?: boolean | null;
   ssl_expires_at?: string | null;
   ssl_state?: SSLState;
   ssl_days_left?: number | null;
+  ssl_severity?: SSLSeverity
 }

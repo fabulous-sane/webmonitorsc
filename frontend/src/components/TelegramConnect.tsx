@@ -39,7 +39,7 @@ export default function TelegramConnect() {
         clearInterval(interval);
         setWaiting(false);
         setToken(null);
-        setError("Не вдалося підключити Telegram");
+        setError("Час очікування вичерпано. Спробуйте ще раз");
       }
     }, 3000);
 

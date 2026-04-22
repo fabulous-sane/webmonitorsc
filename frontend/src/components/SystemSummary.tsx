@@ -17,7 +17,13 @@ interface SystemStatus {
   ssl_warning_events: number;
   ssl_no_data_events: number;
 
-  retention_next_run: string | null;
+  retention_next_run: string | null
+  retention_last_run: string | null
+  retention_deleted_last: number | null
+
+  retention_never_run: boolean
+  retention_broken: boolean
+  retention_delayed: boolean
 }
 
 export default function SystemSummary() {
@@ -125,13 +131,35 @@ export default function SystemSummary() {
       </div>
 
       {/* RETENTION */}
-      {data.retention_next_run && (
-        <div className="text-xs text-gray-400">
-          Наступне очищення:{" "}
-          {new Date(data.retention_next_run).toLocaleString()}
-        </div>
-      )}
+      <div className="p-4 rounded-lg border">
+  <div className="text-sm text-gray-500">Retention</div>
+
+  {data.retention_broken ? (
+    <div className="text-red-600 font-semibold">❌ Scheduler down</div>
+  ) : data.retention_never_run ? (
+    <div className="text-yellow-600">⏳ Never run</div>
+  ) : data.retention_delayed ? (
+    <div className="text-orange-600">⚠ Delayed</div>
+  ) : (
+    <div className="text-green-600">✅ OK</div>
+  )}
+
+  <div className="text-xs text-gray-400 mt-1">
+    Last run: {data.retention_last_run
+      ? new Date(data.retention_last_run).toLocaleString()
+      : "—"}
+  </div>
+
+  <div className="text-xs text-gray-400">
+    Deleted: {data.retention_deleted_last ?? "—"}
+  </div>
+
+  {data.retention_next_run && (
+    <div className="text-xs text-gray-400">
+      Next: {new Date(data.retention_next_run).toLocaleString()}
     </div>
+  )}
+</div>
   );
 }
 

@@ -15,6 +15,9 @@ from app.utils.ssl_util import get_ssl_info
 
 logger = logging.getLogger(__name__)
 
+headers={
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120 Safari/537.36"
+}
 
 @dataclass
 class CheckRawResult:
@@ -29,12 +32,12 @@ class CheckRawResult:
     ssl_error: str | None = None
 
 
-def _is_private_host(host: str | None) -> bool:
+async def _is_private_host(host: str | None) -> bool:
     if not host:
         return True
 
     try:
-        infos = socket.getaddrinfo(host, None)
+        infos = await asyncio.to_thread(socket.getaddrinfo, host, None)
 
         for info in infos:
             ip_str = info[4][0]
@@ -80,24 +83,24 @@ async def run_check(url: str) -> CheckRawResult:
     if parsed.scheme not in ("http", "https"):
         return CheckRawResult(False, None, None, "invalid_scheme")
 
-    if _is_private_host(parsed.hostname):
+    if await _is_private_host(parsed.hostname):
         return CheckRawResult(False, None, None, "blocked_private_ip")
 
     for attempt in range(settings.RETRY_COUNT):
         try:
             start = time.monotonic()
 
-            response = await client.get(url)
+            response = await client.get(url, headers=headers)
 
             duration = int((time.monotonic() - start) * 1000)
 
             final_url = urlparse(str(response.url))
             host = final_url.hostname or parsed.hostname
 
-            if _is_private_host(host):
+            if await _is_private_host(host):
                 return CheckRawResult(False, None, None, "blocked_private_ip")
 
-            if ssl_data is None or ssl_data.get("ssl_valid") is None:
+            if ssl_data is None:
                 ssl_data = await _safe_ssl(host, final_url.scheme)
 
             ssl_valid, ssl_expires_at, ssl_days_left, ssl_error = _map_ssl(ssl_data)

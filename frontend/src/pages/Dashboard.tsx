@@ -62,13 +62,17 @@ const filteredSites = sites.filter(s => {
   if (statusFilter === "DOWN" && !isProblem(s.last_status)) return false
   if (statusFilter !== "ВСІ" && statusFilter !== "DOWN" && s.last_status !== statusFilter) return false
 
-const state = s.ssl_state ?? "no_data"
+const sev = s.ssl_severity
+const state = s.ssl_state
 
-if (sslFilter === "OK" && state !== "ok") return false
-if (sslFilter === "WARNING" && state !== "warning") return false
-if (sslFilter === "CRITICAL" && state !== "critical") return false
+if (sslFilter === "OK" && sev !== "good") return false
+if (sslFilter === "WARNING" && sev !== "warn") return false
+if (sslFilter === "CRITICAL" && sev !== "bad") return false
+
 if (sslFilter === "INVALID" && state !== "invalid") return false
 if (sslFilter === "NO_DATA" && state !== "no_data") return false
+
+if (state === undefined && sslFilter !== "ALL") return false
 
   return true
 })
@@ -140,8 +144,8 @@ if (sslFilter === "NO_DATA" && state !== "no_data") return false
           </div>
         </div>
 
-        <div className="flex gap-6 flex-1">
-            <div className="flex-1 overflow-y-auto space-y-4">
+        <div className="flex gap-6 items-start">
+            <div className="flex-1 space-y-4">
 
             {filteredSites.length === 0 && (
               <div className="text-gray-400 text-sm">
