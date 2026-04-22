@@ -25,36 +25,41 @@ async def get_checks_for_export(
         raise ValueError("Invalid range")
 
     stmt = text("""
-        SELECT
-            cr.checked_at,
-            cr.status,
-            cr.status_code,
-            cr.response_time_ms,
+SELECT
+  date_trunc('minute', cr.checked_at) AS bucket,
+  AVG(cr.response_time_ms) AS response_time_ms,
+  MAX(cr.status) AS status,
+  MAX(cr.ssl_valid) AS ssl_valid,
+  MAX(cr.ssl_days_left) AS ssl_days_left,
+  MAX(cr.ssl_warning) AS ssl_warning,
 
-            cr.ssl_valid,
-            cr.ssl_days_left,
-            cr.ssl_warning,
-            cr.ssl_expires_at,
-            cr.ssl_error,
+  CASE
+    WHEN MAX(cr.ssl_warning) = 'critical' THEN 'critical'
+    WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warning'
+    WHEN MAX(cr.ssl_valid) = false THEN 'invalid'
+    WHEN MAX(cr.ssl_valid) = true THEN 'ok'
+    ELSE 'no_data'
+  END AS ssl_state,
 
-            CASE 
-                WHEN cr.ssl_valid IS NULL THEN 'unknown'
-                WHEN cr.ssl_warning = 'critical' THEN 'critical'
-                WHEN cr.ssl_warning = 'warning' THEN 'warning'
-                WHEN cr.ssl_valid = false THEN 'invalid'
-                ELSE 'ok'
-            END AS ssl_state
+  CASE
+    WHEN MAX(cr.ssl_warning) = 'critical' THEN 'bad'
+    WHEN MAX(cr.ssl_valid) = false THEN 'bad'
+    WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warn'
+    WHEN MAX(cr.ssl_valid) = true THEN 'good'
+    ELSE 'warn'
+  END AS ssl_severity
 
-        FROM check_results cr
-        JOIN sites s ON s.id = cr.site_id
+FROM check_results cr
+JOIN sites s ON s.id = cr.site_id
 
-        WHERE
-            cr.site_id = :site_id
-            AND s.user_id = :user_id
-            AND cr.checked_at >= :cutoff
+WHERE
+  cr.site_id = :site_id
+  AND s.user_id = :user_id
+  AND cr.checked_at >= :cutoff
 
-        ORDER BY cr.checked_at ASC
-        LIMIT 10000
+GROUP BY bucket
+ORDER BY bucket ASC;
+        LIMIT 50000
     """)
 
     result = await session.execute(

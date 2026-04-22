@@ -12,85 +12,92 @@ async def get_overview(
 ) -> list[dict]:
 
     stmt = text("""
-        SELECT
-            s.id AS site_id,
-            s.name,
-            s.url,
-            s.last_status,
-            s.check_interval,
-            s.is_active,
+SELECT
+    s.id AS site_id,
+    s.name,
+    s.url,
+    s.last_status,
+    s.check_interval,
+    s.is_active,
 
-            cr.checked_at AS last_checked_at,
-            cr.ssl_valid,
-            cr.ssl_days_left,
-            cr.ssl_warning,
-            cr.ssl_expires_at,
+    cr.checked_at AS last_checked_at,
+    cr.ssl_valid,
+    cr.ssl_days_left,
+    cr.ssl_warning,
+    cr.ssl_expires_at,
 
-            CASE 
-                WHEN cr.ssl_valid IS NULL THEN 'unknown'
-                WHEN cr.ssl_warning = 'critical' THEN 'critical'
-                WHEN cr.ssl_warning = 'warning' THEN 'warning'
-                WHEN cr.ssl_valid = false THEN 'invalid'
-                ELSE 'ok'
-            END AS ssl_state,
+    CASE
+      WHEN cr.ssl_warning = 'critical' THEN 'critical'
+      WHEN cr.ssl_warning = 'warning' THEN 'warning'
+      WHEN cr.ssl_valid = false THEN 'invalid'
+      WHEN cr.ssl_valid = true THEN 'ok'
+      ELSE 'no_data'
+    END AS ssl_state,
 
-            COALESCE(stats_24.uptime_24h, 0) AS uptime_24h,
-            COALESCE(stats_7.uptime_7d, 0) AS uptime_7d,
-            COALESCE(stats_30.uptime_30d, 0) AS uptime_30d
+    CASE
+      WHEN cr.ssl_warning = 'critical' THEN 'bad'
+      WHEN cr.ssl_valid = false THEN 'bad'
+      WHEN cr.ssl_warning = 'warning' THEN 'warn'
+      WHEN cr.ssl_valid = true THEN 'good'
+      ELSE 'warn'
+    END AS ssl_severity,
 
-        FROM sites s
+    COALESCE(stats_24.uptime_24h, 0) AS uptime_24h,
+    COALESCE(stats_7.uptime_7d, 0) AS uptime_7d,
+    COALESCE(stats_30.uptime_30d, 0) AS uptime_30d,
 
-        LEFT JOIN LATERAL (
-            SELECT
-                checked_at,
-                ssl_valid,
-                ssl_days_left,
-                ssl_warning,
-                ssl_expires_at
-            FROM check_results
-            WHERE check_results.site_id = s.id
-            ORDER BY check_results.checked_at DESC
-            LIMIT 1
-        ) cr ON true
+    COALESCE(stats_24.p95_latency, 0) AS p95_latency,
+    COALESCE(stats_24.error_rate, 0) AS error_rate
 
-        LEFT JOIN (
-            SELECT
-                site_id,
-                ROUND(
-                    COUNT(*) FILTER (WHERE status = 'UP') * 100.0 /
-                    NULLIF(COUNT(*), 0), 2
-                ) AS uptime_24h
-            FROM check_results
-            WHERE checked_at >= timezone('utc', now()) - interval '24 hours'
-            GROUP BY site_id
-        ) stats_24 ON stats_24.site_id = s.id
+FROM sites s
 
-        LEFT JOIN (
-            SELECT
-                site_id,
-                ROUND(
-                    COUNT(*) FILTER (WHERE status = 'UP') * 100.0 /
-                    NULLIF(COUNT(*), 0), 2
-                ) AS uptime_7d
-            FROM check_results
-            WHERE checked_at >= timezone('utc', now()) - interval '7 days'
-            GROUP BY site_id
-        ) stats_7 ON stats_7.site_id = s.id
+LEFT JOIN LATERAL (
+    SELECT
+        checked_at,
+        ssl_valid,
+        ssl_days_left,
+        ssl_warning,
+        ssl_expires_at
+    FROM check_results
+    WHERE check_results.site_id = s.id
+    ORDER BY checked_at DESC
+    LIMIT 1
+) cr ON true
 
-        LEFT JOIN (
-            SELECT
-                site_id,
-                ROUND(
-                    COUNT(*) FILTER (WHERE status = 'UP') * 100.0 /
-                    NULLIF(COUNT(*), 0), 2
-                ) AS uptime_30d
-            FROM check_results
-            WHERE checked_at >= timezone('utc', now()) - interval '30 days'
-            GROUP BY site_id
-        ) stats_30 ON stats_30.site_id = s.id
+LEFT JOIN LATERAL (
+    SELECT
+        COUNT(*) FILTER (WHERE status = 'UP') * 100.0 / NULLIF(COUNT(*),0) AS uptime_24h,
 
-        WHERE s.user_id = :user_id
-        ORDER BY s.created_at DESC;
+        PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY response_time_ms)
+        FILTER (WHERE response_time_ms IS NOT NULL) AS p95_latency,
+
+        COUNT(*) FILTER (
+          WHERE status IN ('DOWN','ERROR','TIMEOUT')
+        ) * 100.0 / NULLIF(COUNT(*),0) AS error_rate
+
+    FROM check_results
+    WHERE site_id = s.id
+      AND checked_at >= now() - interval '24 hours'
+) stats_24 ON true
+
+LEFT JOIN (
+    SELECT site_id,
+           COUNT(*) FILTER (WHERE status = 'UP') * 100.0 / NULLIF(COUNT(*),0) AS uptime_7d
+    FROM check_results
+    WHERE checked_at >= now() - interval '7 days'
+    GROUP BY site_id
+) stats_7 ON stats_7.site_id = s.id
+
+LEFT JOIN (
+    SELECT site_id,
+           COUNT(*) FILTER (WHERE status = 'UP') * 100.0 / NULLIF(COUNT(*),0) AS uptime_30d
+    FROM check_results
+    WHERE checked_at >= now() - interval '30 days'
+    GROUP BY site_id
+) stats_30 ON stats_30.site_id = s.id
+
+WHERE s.user_id = :user_id
+ORDER BY s.created_at DESC;
     """)
 
     result = await session.execute(stmt, {"user_id": user_id})
@@ -102,6 +109,8 @@ async def get_site_checks(
     site_id: UUID,
     user_id: UUID,
     range: str,
+    p95_latency: float,
+    error_rate: float,
 ) -> list[dict]:
 
     now = datetime.now(timezone.utc)
@@ -116,33 +125,40 @@ async def get_site_checks(
         raise ValueError("Invalid range")
 
     stmt = text("""
-        SELECT
-            cr.status,
-            cr.checked_at,
-            cr.response_time_ms,
-            cr.status_code,
-            cr.ssl_valid,
-            cr.ssl_days_left,
-            cr.ssl_warning,
-            cr.ssl_expires_at,
+SELECT
+  date_trunc('minute', cr.checked_at) AS bucket,
+  AVG(cr.response_time_ms) AS response_time_ms,
+  MAX(cr.status) AS status,
+  MAX(cr.ssl_valid) AS ssl_valid,
+  MAX(cr.ssl_days_left) AS ssl_days_left,
+  MAX(cr.ssl_warning) AS ssl_warning,
 
-            CASE 
-                WHEN cr.ssl_valid IS NULL THEN 'unknown'
-                WHEN cr.ssl_warning = 'critical' THEN 'critical'
-                WHEN cr.ssl_warning = 'warning' THEN 'warning'
-                WHEN cr.ssl_valid = false THEN 'invalid'
-                ELSE 'ok'
-            END AS ssl_state
+  CASE
+    WHEN MAX(cr.ssl_warning) = 'critical' THEN 'critical'
+    WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warning'
+    WHEN MAX(cr.ssl_valid) = false THEN 'invalid'
+    WHEN MAX(cr.ssl_valid) = true THEN 'ok'
+    ELSE 'no_data'
+  END AS ssl_state,
 
-        FROM check_results cr
-        JOIN sites s ON s.id = cr.site_id
+  CASE
+    WHEN MAX(cr.ssl_warning) = 'critical' THEN 'bad'
+    WHEN MAX(cr.ssl_valid) = false THEN 'bad'
+    WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warn'
+    WHEN MAX(cr.ssl_valid) = true THEN 'good'
+    ELSE 'warn'
+  END AS ssl_severity
 
-        WHERE
-            cr.site_id = :site_id
-            AND s.user_id = :user_id
-            AND cr.checked_at >= :cutoff
+FROM check_results cr
+JOIN sites s ON s.id = cr.site_id
 
-        ORDER BY cr.checked_at ASC;
+WHERE
+  cr.site_id = :site_id
+  AND s.user_id = :user_id
+  AND cr.checked_at >= :cutoff
+
+GROUP BY bucket
+ORDER BY bucket ASC;
     """)
 
     result = await session.execute(

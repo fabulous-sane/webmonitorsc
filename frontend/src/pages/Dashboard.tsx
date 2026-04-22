@@ -16,7 +16,7 @@ type SSLFilter =
   | "WARNING"
   | "CRITICAL"
   | "INVALID"
-  | "UNKNOWN";
+  | "NO_DATA";
 
 
 export default function Dashboard() {
@@ -34,7 +34,7 @@ export default function Dashboard() {
   { key: "WARNING", label: "⚠" },
   { key: "CRITICAL", label: "🔥" },
   { key: "INVALID", label: "❌" },
-  { key: "UNKNOWN", label: "?" },
+  { key: "NO_DATA", label: "No SSL" },
 ];
 
   const loadSites = async () => {
@@ -55,40 +55,23 @@ export default function Dashboard() {
 
   if (loading) return <div className="p-10">Завантаження...</div>;
 
-  let filteredSites = sites;
+const filteredSites = sites.filter(s => {
+  if (activityFilter === "АКТИВНІ" && !s.is_active) return false
+  if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
 
-  if (activityFilter === "АКТИВНІ") {
-    filteredSites = filteredSites.filter(s => s.is_active);
-  }
+  if (statusFilter === "DOWN" && !isProblem(s.last_status)) return false
+  if (statusFilter !== "ВСІ" && statusFilter !== "DOWN" && s.last_status !== statusFilter) return false
 
-  if (activityFilter === "АРХІВОВАНІ") {
-    filteredSites = filteredSites.filter(s => !s.is_active);
-  }
+const state = s.ssl_state ?? "no_data"
 
-  if (statusFilter === "DOWN") {
-    filteredSites = filteredSites.filter(s =>
-      isProblem(s.last_status)
-    );
-  } else if (statusFilter !== "ВСІ") {
-    filteredSites = filteredSites.filter(
-      s => s.last_status === statusFilter
-    );
-  }
+if (sslFilter === "OK" && state !== "ok") return false
+if (sslFilter === "WARNING" && state !== "warning") return false
+if (sslFilter === "CRITICAL" && state !== "critical") return false
+if (sslFilter === "INVALID" && state !== "invalid") return false
+if (sslFilter === "NO_DATA" && state !== "no_data") return false
 
-if (sslFilter !== "ALL") {
-  filteredSites = filteredSites.filter(s => {
-    const state = s.ssl_state ?? "no_data";
-    if (sslFilter === "OK") return state === "ok";
-    if (sslFilter === "WARNING") return state === "warning";
-    if (sslFilter === "CRITICAL") return state === "critical";
-    if (sslFilter === "INVALID") return state === "invalid";
-    if (sslFilter === "UNKNOWN") {
-    return state === "unknown" || state === "no_data";
-    }
-
-    return true;
-  });
-}
+  return true
+})
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
@@ -109,7 +92,7 @@ if (sslFilter !== "ALL") {
 
         <SystemSummary />
 
-        <div className="flex gap-4 text-sm">
+        <div className="flex gap-2 flex-wrap">
           {["ВСІ", "АКТИВНІ", "АРХІВОВАНІ"].map(f => (
             <button
               key={f}

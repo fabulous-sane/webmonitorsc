@@ -18,7 +18,7 @@ api.interceptors.response.use(
     const originalRequest = error.config;
 
     if (!error.response) {
-      console.error("CORS or network error");
+      console.error("Помилка мережі:", error);
       return Promise.reject(error);
     }
 

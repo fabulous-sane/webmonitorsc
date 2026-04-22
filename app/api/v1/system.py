@@ -36,8 +36,8 @@ async def system_status(
         "ssl_critical_events": data.get("ssl_critical_events", 0),
         "ssl_warning_events": data.get("ssl_warning_events", 0),
         "ssl_invalid_events": data.get("ssl_invalid_events", 0),
-        "ssl_unknown_sites": data.get("ssl_unknown_sites", 0),
-        "ssl_unknown_events": data.get("ssl_unknown_events", 0),
+        "ssl_no_data_sites": data.get("ssl_no_data_sites", 0),
+        "ssl_no_data_events": data.get("ssl_no_data_events", 0),
 
         "retention_next_run": retention_next_run,
     }

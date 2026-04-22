@@ -24,7 +24,7 @@ async def get_system_status(session: AsyncSession) -> dict:
             COUNT(DISTINCT s.id) FILTER (
             WHERE cr.ssl_valid IS NULL
             AND cr.ssl_warning IS NULL
-            ) AS ssl_unknown_sites,
+            ) AS ssl_no_data_sites,
             
             COUNT(DISTINCT s.id) FILTER (
             WHERE cr.ssl_valid = true
@@ -36,7 +36,7 @@ async def get_system_status(session: AsyncSession) -> dict:
             FROM check_results
                 WHERE ssl_valid IS NULL
             AND checked_at >= now() - interval '24 hours'
-            ) AS ssl_unknown_events,
+            ) AS ssl_no_data_events,
 
             (
                 SELECT COUNT(*)

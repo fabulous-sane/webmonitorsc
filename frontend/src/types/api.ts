@@ -3,7 +3,6 @@ export type SSLState =
   | "warning"
   | "critical"
   | "invalid"
-  | "unknown"
   | "no_data";
 
 export type SiteStatus =
@@ -11,7 +10,8 @@ export type SiteStatus =
   | "DOWN"
   | "TIMEOUT"
   | "ERROR"
-  | "UNKNOWN";
+
+export type SSLSeverity = "good" | "warn" | "bad"
 
 export interface DashboardItem {
   site_id: string;
@@ -27,6 +27,9 @@ export interface DashboardItem {
   ssl_valid?: boolean | null;
   ssl_days_left?: number | null;
   ssl_state?: SSLState;
+  ssl_severity?: SSLSeverity;
+  p95_latency?: number
+  error_rate?: number
 }
 
 export interface Check {
