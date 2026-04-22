@@ -13,8 +13,8 @@ router = APIRouter(prefix="/system", tags=["system"])
 
 @router.get("/status")
 async def system_status(
+    request: Request,
     session: AsyncSession = Depends(get_db),
-    request: Request = Depends()
 ):
     data = await get_system_status(session)
     now = datetime.now(timezone.utc)
