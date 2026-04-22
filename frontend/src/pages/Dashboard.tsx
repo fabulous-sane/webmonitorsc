@@ -140,7 +140,7 @@ if (sslFilter === "NO_DATA" && state !== "no_data") return false
           </div>
         </div>
 
-        <div className="flex gap-6 flex-1">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-3 text-sm">
           <div className="flex-1 overflow-y-auto space-y-4">
 
             {filteredSites.length === 0 && (

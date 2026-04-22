@@ -5,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-
 async def get_overview(
     session: AsyncSession,
     user_id: UUID,
@@ -46,8 +45,8 @@ SELECT
     COALESCE(stats_7.uptime_7d, 0) AS uptime_7d,
     COALESCE(stats_30.uptime_30d, 0) AS uptime_30d,
 
-    COALESCE(stats_24.p95_latency, 0) AS p95_latency,
-    COALESCE(stats_24.error_rate, 0) AS error_rate
+    stats_24.p95_latency AS p95_latency,
+    stats_24.error_rate AS error_rate
 
 FROM sites s
 
@@ -109,8 +108,6 @@ async def get_site_checks(
     site_id: UUID,
     user_id: UUID,
     range: str,
-    p95_latency: float,
-    error_rate: float,
 ) -> list[dict]:
 
     now = datetime.now(timezone.utc)
@@ -128,7 +125,6 @@ async def get_site_checks(
 SELECT
   date_trunc('minute', cr.checked_at) AS bucket,
   AVG(cr.response_time_ms) AS response_time_ms,
-  MAX(cr.status) AS status,
   MAX(cr.ssl_valid) AS ssl_valid,
   MAX(cr.ssl_days_left) AS ssl_days_left,
   MAX(cr.ssl_warning) AS ssl_warning,
