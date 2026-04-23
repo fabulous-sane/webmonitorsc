@@ -100,41 +100,21 @@ if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
           </button>
         </div>
     <div className="space-y-6">
-        <SystemSummary />
 
-{/* FILTERS */}
-<div className="space-y-4">
+  <SystemSummary />
+
+  {/* FILTERS */}
+  <div className="space-y-4">
 
   {/* Activity */}
-  <div className="flex gap-2">
-    {["ВСІ", "АКТИВНІ", "АРХІВОВАНІ"].map(f => (
-      <button
-        key={f}
-        onClick={() => setActivityFilter(f as ActivityFilter)}
-        className={`px-4 py-1 rounded-md ${
-          activityFilter === f
-            ? "bg-blue-600 text-white"
-            : "bg-gray-200"
-        }`}
-      >
-        {f}
-      </button>
-    ))}
-  </div>
-
-{/* Health */}
-  <div>
-    <div className="text-xs text-gray-400 mb-1">
-      Overall health (HTTP + SSL + errors)
-    </div>
     <div className="flex gap-2">
-      {["ALL", "HEALTHY", "WARNING", "CRITICAL"].map(f => (
+      {["ВСІ", "АКТИВНІ", "АРХІВОВАНІ"].map(f => (
         <button
           key={f}
-          onClick={() => setHealthFilter(f as HealthFilter)}
-          className={`px-3 py-1 rounded-md ${
-            healthFilter === f
-              ? "bg-green-600 text-white"
+          onClick={() => setActivityFilter(f as ActivityFilter)}
+          className={`px-4 py-1 rounded-md ${
+            activityFilter === f
+              ? "bg-blue-600 text-white"
               : "bg-gray-200"
           }`}
         >
@@ -142,74 +122,97 @@ if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
         </button>
       ))}
     </div>
-  </div>
+
+{/* Health */}
+    <div>
+      <div className="text-xs text-gray-400 mb-1">
+        Overall health (HTTP + SSL + errors)
+      </div>
+      <div className="flex gap-2">
+        {["ALL", "HEALTHY", "WARNING", "CRITICAL"].map(f => (
+          <button
+            key={f}
+            onClick={() => setHealthFilter(f as HealthFilter)}
+            className={`px-3 py-1 rounded-md ${
+              healthFilter === f
+                ? "bg-green-600 text-white"
+                : "bg-gray-200"
+            }`}
+          >
+            {f}
+          </button>
+        ))}
+      </div>
+    </div>
 
   {/* SSL */}
-  <div>
-    <div className="text-xs text-gray-400 mb-1">SSL</div>
-    <div className="flex gap-2 flex-wrap">
-      {sslButtons.map(b => (
-        <button
-          key={b.key}
-          onClick={() => setSslFilter(b.key as SSLFilter)}
-          className={`px-3 py-1 rounded-md ${
-            sslFilter === b.key
-              ? "bg-purple-600 text-white"
-              : "bg-gray-200"
-          }`}
-        >
-          {b.label}
-        </button>
-      ))}
+    <div>
+      <div className="text-xs text-gray-400 mb-1">SSL</div>
+      <div className="flex gap-2 flex-wrap">
+        {sslButtons.map(b => (
+          <button
+            key={b.key}
+            onClick={() => setSslFilter(b.key as SSLFilter)}
+            className={`px-3 py-1 rounded-md ${
+              sslFilter === b.key
+                ? "bg-purple-600 text-white"
+                : "bg-gray-200"
+            }`}
+          >
+            {b.label}
+          </button>
+        ))}
+      </div>
     </div>
-  </div>
 
   {/* HTTP */}
-  <div>
-  <div className="text-xs text-gray-400 mb-1">HTTP</div>
-  <div className="flex gap-2">
-    {["ВСІ", "UP", "DOWN", "ERROR", "TIMEOUT"].map(s => (
-      <button
-        key={s}
-        onClick={() => setStatusFilter(s as StatusFilter)}
-        className={`px-3 py-1 rounded-md ${
-          statusFilter === s
-            ? "bg-black text-white"
-            : "bg-gray-200"
-        }`}
-      >
-        {s}
-      </button>
-    ))}
+    <div>
+      <div className="text-xs text-gray-400 mb-1">HTTP</div>
+      <div className="flex gap-2">
+        {["ВСІ", "UP", "DOWN", "ERROR", "TIMEOUT"].map(s => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s as StatusFilter)}
+            className={`px-3 py-1 rounded-md ${
+              statusFilter === s
+                ? "bg-black text-white"
+                : "bg-gray-200"
+            }`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+    </div>
+
   </div>
-</div>
-</div>
 
 {/* CONTENT */}
 <div className="flex gap-6 items-start">
 
-            <div className="flex-1 space-y-4">
-
-            {filteredSites.length === 0 && (
-              <div className="text-gray-400 text-sm">
-                Немає сайтів
-              </div>
-            )}
-
-            {filteredSites.map(site => (
-              <SiteCard
-                key={site.site_id}
-                {...site}
-                archived={!site.is_active}
-                onDeleted={loadSites}
-                onReactivated={loadSites}
-              />
-            ))}
-            </div>
+    <div className="flex-1 space-y-4">
+      {filteredSites.length === 0 ? (
+        <div className="text-gray-400 text-sm">
+          Немає сайтів
+        </div>
+      ) : (
+        filteredSites.map(site => (
+          <SiteCard
+            key={site.site_id}
+            {...site}
+            archived={!site.is_active}
+            onDeleted={loadSites}
+            onReactivated={loadSites}
+          />
+        ))
+      )}
+    </div>
 
           <div className="w-80">
             <TelegramConnect />
           </div>
+
+        </div>
 
         </div>
       {showModal && (
