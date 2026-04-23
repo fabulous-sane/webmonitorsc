@@ -211,5 +211,4 @@ if (healthFilter !== "ALL") {
         />
       )}
     </div>
-    );
-}
+);
