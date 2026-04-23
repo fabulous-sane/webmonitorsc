@@ -175,8 +175,6 @@ if (healthFilter !== "ALL") {
           {s}
         </button>
       ))}
-    </div>
-
 
         <div className="flex gap-6 items-start">
             <div className="flex-1 space-y-4">
@@ -196,17 +194,18 @@ if (healthFilter !== "ALL") {
                 onReactivated={loadSites}
               />
             ))}
+            </div>
 
           <div className="w-80">
             <TelegramConnect />
           </div>
 
-
+</div>
       {showModal && (
         <AddSiteModal
           onClose={() => setShowModal(false)}
           onCreated={loadSites}
         />
-      )}
-    </div>
-);
+
+);}
+
