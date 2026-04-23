@@ -108,7 +108,7 @@ const chartData = useMemo(() => {
   .filter(c => c.bucket)
   .map(c => ({
     time: new Date(c.bucket!).getTime(),
-    response_time: c.response_time_ms ?? null,
+    response_time: c.avg_response_time_ms ?? null,
     status: c.status,
     ssl_state: c.ssl_state,
     ssl_days_left: c.ssl_days_left,
@@ -147,23 +147,32 @@ const chartData = useMemo(() => {
   };
 
 const handleExport = async () => {
-  const response = await api.get(`/export/site/${site_id}`, {
-    params: { range },
-    responseType: "blob",
-  });
+  try {
+    const response = await api.get(`/export/site/${site_id}`, {
+      params: { range },
+      responseType: "blob",
+    });
 
-  const blob = new Blob([response.data], { type: "text/csv" });
-  const link = document.createElement("a");
-  const url = URL.createObjectURL(blob);
+    const blob = new Blob([response.data], { type: "text/csv" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
 
-  link.href = url;
-  link.setAttribute("download", `${name}_${range}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
+    link.href = url;
+    link.setAttribute("download", `${name}_${range}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
 
-  URL.revokeObjectURL(url);
-};
+    URL.revokeObjectURL(url);
+  } catch (e: any) {
+  console.error(e)
+
+  if (e?.response?.status === 500) {
+    alert("Server error during export")
+  } else {
+    alert("Export failed")
+  }
+}}
 
   return (
     <div
@@ -334,8 +343,8 @@ archived
     const p = payload?.[0]?.payload;
     if (!p) return null;
     const sev = p.ssl_severity ?? null;
-    const isHttpPoint = url.startsWith("http://")
     const pointState = p.ssl_state ?? "no_data"
+    const isHttpPoint = pointState === "no_data" && url.startsWith("http://")
 
     const pointLabel = isHttpPoint
     ? "No SSL (HTTP)"
@@ -356,7 +365,7 @@ archived
         </div>
 
         <div>
-            {!isHttpPoint && !sev && "No SSL data"}
+            {!isHttpPoint && sev === null && "No SSL data"}
             {sev === "bad" && "🔥 Problem"}
             {sev === "warn" && "⚠ Warning"}
 {           sev === "good" && "✅ OK"}

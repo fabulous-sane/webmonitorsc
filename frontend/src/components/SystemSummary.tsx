@@ -12,6 +12,8 @@ interface SystemStatus {
   ssl_no_data_sites: number;
   ssl_ok_sites: number;
 
+  problematic_sites: number
+
   ssl_invalid_events: number;
   ssl_critical_events: number;
   ssl_warning_events: number;
@@ -52,13 +54,13 @@ export default function SystemSummary() {
       </div>
 
       {/* GLOBAL */}
-    <div>
+    <div className="space-y-2">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
         <Card label="Активні сайти" value={data.active_sites} />
         <Card label="Архівовані" value={data.archived_sites} />
         <Card label="Перевірки (сьогодні)" value={data.checks_24h} />
     </div>
-        <div className="text-xs text-gray-400 mt-1">
+        <div className="text-xs text-gray-400">
     з моменту 00:00 UTC
   </div>
       </div>
@@ -101,7 +103,7 @@ export default function SystemSummary() {
           />
           <Card
   label="SSL проблемні"
-  value={(data as any).problematic_sites ?? 0}
+  value={data.problematic_sites ?? 0}
   className="bg-red-50 text-red-700"
 />
         </div>

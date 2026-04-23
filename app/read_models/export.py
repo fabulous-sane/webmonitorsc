@@ -27,10 +27,14 @@ async def get_checks_for_export(
     stmt = text("""
 SELECT
   date_trunc('minute', cr.checked_at) AS bucket,
-  AVG(cr.response_time_ms) AS response_time_ms,
-  (
-  ARRAY_AGG(cr.status ORDER BY cr.checked_at DESC)
+  AVG(cr.response_time_ms) AS avg_response_time_ms,
+(
+ARRAY_AGG(cr.status::text ORDER BY cr.checked_at DESC)
 )[1] AS status,
+
+(
+ARRAY_AGG(cr.status_code ORDER BY cr.checked_at DESC)
+)[1] AS status_code,
   BOOL_OR(cr.ssl_valid) AS ssl_valid,
   MIN(cr.ssl_days_left) AS ssl_days_left,
   MAX(cr.ssl_warning) AS ssl_warning,

@@ -59,7 +59,10 @@ const filteredSites = sites.filter(s => {
   if (activityFilter === "АКТИВНІ" && !s.is_active) return false
   if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
 
-  if (statusFilter !== "ВСІ" && statusFilter !== "DOWN" && s.last_status !== statusFilter) return false
+  if (statusFilter === "DOWN" && !isProblem(s.last_status)) return false
+
+if (statusFilter !== "ВСІ" && statusFilter !== "DOWN" && s.last_status !== statusFilter)
+  return false
 
 const state = s.ssl_state
 const isHttp = s.url.startsWith("http://")
@@ -68,13 +71,15 @@ if (healthFilter !== "ALL") {
   if (healthFilter === "CRITICAL" && s.health !== "critical") return false
   if (healthFilter === "WARNING" && s.health !== "warning") return false
   if (healthFilter === "HEALTHY" && s.health !== "healthy") return false
-} else {
-  if (sslFilter === "CRITICAL" && state !== "critical") return false
-  if (sslFilter === "WARNING" && state !== "warning") return false
-  if (sslFilter === "INVALID" && state !== "invalid") return false
-  if (sslFilter === "OK" && state !== "ok") return false
-  if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
 }
+
+if (sslFilter === "CRITICAL" && state !== "critical") return false
+
+if (sslFilter === "WARNING" && state !== "warning") return false
+if (sslFilter === "INVALID" && state !== "invalid") return false
+if (sslFilter === "OK" && state !== "ok") return false
+if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
+
   return true
 })
 

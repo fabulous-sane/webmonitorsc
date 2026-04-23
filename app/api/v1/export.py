@@ -41,18 +41,17 @@ async def export_site_checks(
         "checked_at",
         "status",
         "status_code",
-        "response_time_ms",
+        "avg_response_time_ms",
     ])
 
     for r in rows:
-        status = r["status"]
-        status_value = status.name if hasattr(status, "name") else str(status)
-
+        status_value = r["status"] or ""
+        timestamp = r["bucket"]
         writer.writerow([
-            r["checked_at"].isoformat() if r["checked_at"] else "",
+            timestamp.isoformat() if timestamp else "",
             status_value,
-            r["status_code"],
-            r["response_time_ms"],
+            r["status_code"] or "",
+            r["avg_response_time_ms"] or ""
         ])
 
     buffer.seek(0)

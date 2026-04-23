@@ -69,7 +69,6 @@ async def system_status(
         "problematic_sites": data.get("problematic_sites", 0),
 
         "checks_24h": data.get("checks_24h", 0),
-        "health": data.get("health"),
 
         "ssl_critical_events": data.get("ssl_critical_events", 0),
         "ssl_warning_events": data.get("ssl_warning_events", 0),
