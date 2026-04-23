@@ -178,7 +178,7 @@ if (healthFilter !== "ALL") {
     ))}
   </div>
 </div>
-
+</div>
         <div className="flex gap-6 items-start">
             <div className="flex-1 space-y-4">
 
@@ -203,7 +203,7 @@ if (healthFilter !== "ALL") {
             <TelegramConnect />
           </div>
 
-</div>
+        </div>
       {showModal && (
         <AddSiteModal
           onClose={() => setShowModal(false)}
