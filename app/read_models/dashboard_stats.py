@@ -5,6 +5,33 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+def compute_health(status, ssl_severity, error_rate, latency):
+    if status == "DOWN":
+        return "critical"
+
+    if status in ("ERROR", "TIMEOUT"):
+        return "warning"
+
+    if not status:
+        return "warning"
+
+    if ssl_severity == "bad":
+        return "warning"
+
+    if error_rate is not None and error_rate > 10:
+        return "critical"
+
+    if ssl_severity == "warn":
+        return "warning"
+
+    if error_rate is not None and error_rate > 2:
+        return "warning"
+
+    if latency is not None and latency > 800:
+        return "warning"
+
+    return "healthy"
+
 async def get_overview(
     session: AsyncSession,
     user_id: UUID,
@@ -100,7 +127,18 @@ ORDER BY s.created_at DESC;
     """)
 
     result = await session.execute(stmt, {"user_id": user_id})
-    return [dict(row) for row in result.mappings().all()]
+    rows = [dict(row) for row in result.mappings().all()]
+
+    for r in rows:
+        latency = r.get("p95_latency")
+        r["health"] = compute_health(
+            r.get("last_status"),
+            r.get("ssl_severity"),
+            r.get("error_rate"),
+            latency if latency is not None else None,
+        )
+
+    return rows
 
 async def get_site_checks(
     session: AsyncSession,
@@ -128,6 +166,9 @@ SELECT
   BOOL_OR(cr.ssl_valid) AS ssl_valid,
   MIN(cr.ssl_days_left) AS ssl_days_left,
   MAX(cr.ssl_warning) AS ssl_warning,
+  (
+  ARRAY_AGG(cr.status ORDER BY cr.checked_at DESC)
+)[1] AS status,
 
  CASE
   WHEN MAX(cr.ssl_warning) = 'critical' THEN 'critical'
@@ -166,4 +207,16 @@ ORDER BY bucket ASC;
         },
     )
 
-    return [dict(row) for row in result.mappings().all()]
+    rows = [dict(row) for row in result.mappings().all()]
+
+    for r in rows:
+        r["health"] = compute_health(
+            r.get("status"),
+            r.get("ssl_severity"),
+            None,
+            r.get("response_time_ms"),
+        )
+
+    return rows
+
+

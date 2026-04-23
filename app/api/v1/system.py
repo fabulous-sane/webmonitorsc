@@ -35,11 +35,14 @@ async def system_status(
         else:
             next_run = next_run.astimezone(timezone.utc)
 
-
-    row = await session.execute(
-        text("SELECT last_run_at, last_deleted_count FROM retention_meta WHERE id = 1")
-    )
-    meta = row.first()
+    try:
+        row = await session.execute(
+            text("SELECT last_run_at, last_deleted_count FROM retention_meta WHERE id = 1")
+        )
+        meta = row.first()
+    except Exception:
+        logger.exception("Retention meta read failed")
+        meta = None
 
     last_run = meta[0] if meta else None
     deleted = meta[1] if meta else None
@@ -48,7 +51,7 @@ async def system_status(
 
     delay_threshold = timedelta(hours=settings.RETENTION_DELAY_THRESHOLD_HOURS)
 
-    retention_never_run = last_run is None
+    retention_never_run = last_run is None and deleted is None
     retention_broken = next_run is None
     retention_delayed = (
             next_run is not None and now > next_run + delay_threshold
@@ -63,7 +66,10 @@ async def system_status(
         "ssl_invalid_sites": data.get("ssl_invalid_sites", 0),
         "ssl_ok_sites": data.get("ssl_ok_sites", 0),
 
+        "problematic_sites": data.get("problematic_sites", 0),
+
         "checks_24h": data.get("checks_24h", 0),
+        "health": data.get("health"),
 
         "ssl_critical_events": data.get("ssl_critical_events", 0),
         "ssl_warning_events": data.get("ssl_warning_events", 0),

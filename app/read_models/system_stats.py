@@ -31,38 +31,43 @@ async def get_system_status(session: AsyncSession) -> dict:
             AND cr.ssl_warning IS NULL
             ) AS ssl_ok_sites,
             
+            COUNT(DISTINCT s.id) FILTER (
+            WHERE cr.ssl_warning = 'critical'
+            OR cr.ssl_valid = false
+            ) AS problematic_sites,
+            
             (
             SELECT COUNT(*)
             FROM check_results
                 WHERE ssl_valid IS NULL
-            AND checked_at >= now() - interval '24 hours'
+            AND checked_at >= date_trunc('day', now())
             ) AS ssl_no_data_events,
 
             (
                 SELECT COUNT(*)
                 FROM check_results
-                WHERE checked_at >= now() - interval '24 hours'
+                WHERE checked_at >= date_trunc('day', now())
             ) AS checks_24h,
 
             (
                 SELECT COUNT(*)
                 FROM check_results
                 WHERE ssl_warning = 'critical'
-                AND checked_at >= now() - interval '24 hours'
+                AND checked_at >= date_trunc('day', now())
             ) AS ssl_critical_events,
 
             (
                 SELECT COUNT(*)
                 FROM check_results
                 WHERE ssl_warning = 'warning'
-                AND checked_at >= now() - interval '24 hours'
+                AND checked_at >= date_trunc('day', now())
             ) AS ssl_warning_events,
             
             (
     SELECT COUNT(*)
     FROM check_results
     WHERE ssl_valid = false
-    AND checked_at >= now() - interval '24 hours'
+    AND checked_at >= date_trunc('day', now())
 ) AS ssl_invalid_events
 
         FROM sites s

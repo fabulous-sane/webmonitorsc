@@ -52,10 +52,14 @@ export default function SystemSummary() {
       </div>
 
       {/* GLOBAL */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <div>
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
         <Card label="Активні сайти" value={data.active_sites} />
         <Card label="Архівовані" value={data.archived_sites} />
-        <Card label="Перевірки (24г)" value={data.checks_24h} />
+        <Card label="Перевірки (сьогодні)" value={data.checks_24h} />
+        <div className="text-xs text-gray-400 mt-1">
+    з моменту 00:00 UTC
+  </div>
       </div>
 
       {/* SSL SITES */}
@@ -64,7 +68,7 @@ export default function SystemSummary() {
           SSL стан (сайти)
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
           <Card
             label="Critical"
             value={data.ssl_critical_sites}
@@ -94,16 +98,21 @@ export default function SystemSummary() {
             value={data.ssl_ok_sites}
             className="bg-green-50 text-green-700"
           />
+          <Card
+  label="SSL проблемні"
+  value={(data as any).problematic_sites ?? 0}
+  className="bg-red-50 text-red-700"
+/>
         </div>
       </div>
 
       {/* SSL EVENTS */}
       <div>
         <div className="text-sm font-medium text-gray-500 mb-2">
-          SSL події (24 години)
+          SSL події (сьогодні)
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           <Card
             label="Critical"
             value={data.ssl_critical_events}

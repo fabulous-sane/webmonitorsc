@@ -31,6 +31,7 @@ interface Props {
   ssl_severity?: SSLSeverity;
   p95_latency?: number
   error_rate?: number
+  health?: "healthy" | "warning" | "critical"
   onDeleted?: () => void;
   onReactivated?: () => void;
 }
@@ -53,6 +54,7 @@ export default function SiteCard({
   ssl_severity,
   p95_latency,
   error_rate,
+  health,
 }: Props) {
 
   const [expanded, setExpanded] = useState(false);
@@ -60,11 +62,11 @@ export default function SiteCard({
   const [loading, setLoading] = useState(false);
   const [range, setRange] = useState<"24h" | "7d" | "30d">("24h");
   const [intervalEdit, setIntervalEdit] = useState(check_interval);
-  const isHttpBad = last_status ? isProblem(last_status) : false
-
+  const isHttp = url.startsWith("http://")
   const state = ssl_state
-  const severity = ssl_severity
-  const hasSSL = ssl_state && ssl_state !== "no_data"
+  const effectiveSSLState: SSLState | "http" = isHttp
+  ? "http"
+  : state ?? "no_data"
 
   const sslLabels: Record<SSLState, string> = {
   critical: "🔥 Критично",
@@ -73,6 +75,11 @@ export default function SiteCard({
   no_data: "Немає даних",
   ok: "✅ Нормально",
 };
+
+const sslLabel = useMemo(() => {
+  if (effectiveSSLState === "http") return "No SSL (HTTP)"
+  return sslLabels[effectiveSSLState as SSLState] ?? "—"
+}, [effectiveSSLState])
 
 const statusLabels: Record<SiteStatus, string> = {
   UP: "Працює",
@@ -106,6 +113,7 @@ const chartData = useMemo(() => {
     ssl_state: c.ssl_state,
     ssl_days_left: c.ssl_days_left,
     ssl_severity: c.ssl_severity,
+    health: c.health,
   }))
 }, [rawData])
 
@@ -159,33 +167,25 @@ const handleExport = async () => {
 
   return (
     <div
-className={`rounded-xl p-5 shadow border-2 transition ${
-  archived
-    ? "bg-gray-50 border-gray-400 opacity-80"
-    : isHttpBad
-    ? "bg-red-50 border-red-600"
-    : !hasSSL
-    ? "bg-gray-50 border-gray-300"
-    : severity === "bad"
-    ? "bg-red-50 border-red-500"
-    : severity === "warn"
-    ? "bg-yellow-50 border-yellow-400"
-    : "bg-white border-gray-300"
+className={`rounded-xl p-6 shadow border-2 transition ${
+archived
+    ? "border-gray-400 opacity-70"
+    : health === "critical"
+    ? "border-red-600 bg-red-50"
+    : health === "warning"
+    ? "border-yellow-400 bg-yellow-50"
+    : "border-gray-300"
 }`}
 >
   <div className="flex items-center gap-2">
 
   <StatusBadge status={last_status} />
 
-{!hasSSL ? (
-  <span className="text-gray-400 text-xs">⭕ SSL</span>
-) : severity === "bad" ? (
-  <span className="text-red-600 text-xs">🔥 SSL</span>
-) : severity === "warn" ? (
-  <span className="text-yellow-600 text-xs">⚠️ SSL</span>
-) : (
-  <span className="text-green-600 text-xs">🔒 SSL</span>
-)}
+<span className="text-xs font-semibold">
+  {health === "critical" && "🔴 CRITICAL"}
+  {health === "warning" && "🟡 WARNING"}
+  {health === "healthy" && "🟢 HEALTHY"}
+</span>
 </div>
 
       {/* HEADER */}
@@ -248,13 +248,13 @@ className={`rounded-xl p-5 shadow border-2 transition ${
           )}
         </div>
       </div>
-<div className="grid grid-cols-3 gap-4 text-sm mt-4">
+<div className="grid grid-cols-3 gap-6 text-sm mt-4">
   <SLA label="24г" value={uptime_24h} />
   <SLA label="7д" value={uptime_7d} />
   <SLA label="30д" value={uptime_30d} />
 </div>
 
-<div className="grid grid-cols-2 gap-4 text-sm mt-4">
+<div className="grid grid-cols-2 gap-6 text-sm mt-4">
   <div>
     <div className="text-gray-500">p95 latency</div>
     <div className="font-semibold">
@@ -297,14 +297,13 @@ className={`rounded-xl p-5 shadow border-2 transition ${
 </div>
 
 {expanded && (
-  <div className="mt-4 space-y-3">
-          <div className="text-xs text-gray-500 flex gap-3">
-            <span>🔴 HTTP bad</span>
-            <span>🔥 SSL bad</span>
-            <span>⚠ SSL warn</span>
-          </div>
+  <div className="space-y-1 text-xs text-gray-500">
 
-    <div className="mt-6 h-72">
+  <div className="text-xs text-gray-500">
+  Health = HTTP + SSL + Errors
+</div>
+
+    <div className="mt-4 h-72">
       {loading ? (
         <div className="text-center text-gray-500 mt-20">
           Завантаження...
@@ -334,8 +333,13 @@ className={`rounded-xl p-5 shadow border-2 transition ${
 
     const p = payload?.[0]?.payload;
     if (!p) return null;
-    const state = p.ssl_state ?? "no_data";
     const sev = p.ssl_severity ?? null;
+    const isHttpPoint = url.startsWith("http://")
+    const pointState = p.ssl_state ?? "no_data"
+
+    const pointLabel = isHttpPoint
+    ? "No SSL (HTTP)"
+    : sslLabels[pointState as SSLState] ?? "—"
 
     return (
       <div className="bg-white p-2 border rounded shadow text-xs">
@@ -348,14 +352,21 @@ className={`rounded-xl p-5 shadow border-2 transition ${
         </div>
 
         <div>
-          🔐 SSL: {sslLabels[state as SSLState] ?? "—"}
+          🔐 SSL: {pointLabel}
         </div>
 
         <div>
-            {!sev && "No SSL data"}
+            {!isHttpPoint && !sev && "No SSL data"}
             {sev === "bad" && "🔥 Problem"}
             {sev === "warn" && "⚠ Warning"}
-            {sev === "good" && "✅ OK"}
+{           sev === "good" && "✅ OK"}
+        </div>
+
+        <div>
+        Health:
+        {p.health === "critical" && " 🔴 Critical"}
+        {p.health === "warning" && " 🟡 Warning"}
+        {p.health === "healthy" && " 🟢 Healthy"}
         </div>
 
         {p.ssl_days_left != null && (
@@ -374,13 +385,21 @@ className={`rounded-xl p-5 shadow border-2 transition ${
             <ReferenceLine y={threshold} stroke="red" strokeDasharray="2 2" />
 
             <Line
-              type="monotone"
               dataKey="response_time"
-              stroke="#2563eb"
-              strokeWidth={2}
-              dot={false}
-              connectNulls={false}
-            />
+  stroke="#2563eb"
+dot={(props) => {
+  const { payload } = props
+  if (!payload) return false
+
+  const colorMap = {
+    critical: "#dc2626",
+    warning: "#f59e0b",
+    healthy: "#16a34a"
+  }
+
+  return <circle r={3} fill={colorMap[payload.health] || "#9ca3af"} />
+}}
+/>
           </LineChart>
         </ResponsiveContainer>
       )}

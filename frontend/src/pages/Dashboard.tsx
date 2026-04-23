@@ -8,6 +8,7 @@ import SystemSummary from "../components/SystemSummary";
 import { isProblem } from "../types/status";
 import type { DashboardItem, SiteStatus } from "../types/api";
 
+type HealthFilter = "ALL" | "HEALTHY" | "WARNING" | "CRITICAL"
 type StatusFilter = "ВСІ" | "UP" | "DOWN" | "ERROR" | "TIMEOUT";
 type ActivityFilter = "ВСІ" | "АКТИВНІ" | "АРХІВОВАНІ";
 type SSLFilter =
@@ -18,12 +19,11 @@ type SSLFilter =
   | "INVALID"
   | "NO_DATA";
 
-
 export default function Dashboard() {
   const [sites, setSites] = useState<DashboardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-
+  const [healthFilter, setHealthFilter] = useState<HealthFilter>("ALL")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ВСІ");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("ВСІ");
   const [sslFilter, setSslFilter] = useState<SSLFilter>("ALL");
@@ -64,13 +64,19 @@ const filteredSites = sites.filter(s => {
 
 const sev = s.ssl_severity
 const state = s.ssl_state
+const isHttp = s.url.startsWith("http://")
 
-if (sslFilter === "OK" && sev !== "good") return false
-if (sslFilter === "WARNING" && sev !== "warn") return false
-if (sslFilter === "CRITICAL" && sev !== "bad") return false
+if (healthFilter === "CRITICAL" && s.health !== "critical") return false
+if (healthFilter === "WARNING" && s.health !== "warning") return false
+if (healthFilter === "HEALTHY" && s.health !== "healthy") return false
+
+if (sslFilter === "CRITICAL" && state !== "critical") return false
+if (sslFilter === "WARNING" && state !== "warning") return false
 
 if (sslFilter === "INVALID" && state !== "invalid") return false
-if (sslFilter === "NO_DATA" && state !== "no_data") return false
+if (sslFilter === "OK" && state !== "ok") return false
+
+if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
 
 if (state === undefined && sslFilter !== "ALL") return false
 
@@ -96,7 +102,9 @@ if (state === undefined && sslFilter !== "ALL") return false
 
         <SystemSummary />
 
-        <div className="flex gap-2 flex-wrap">
+        {/* Activity */}
+        <div className="space-y-3">
+        <div className="flex gap-2">
           {["ВСІ", "АКТИВНІ", "АРХІВОВАНІ"].map(f => (
             <button
               key={f}
@@ -110,24 +118,50 @@ if (state === undefined && sslFilter !== "ALL") return false
               {f}
             </button>
           ))}
-
-            <div className="ml-8 flex gap-2">
-  {sslButtons.map(b => (
-  <button
-    key={b.key}
-    onClick={() => setSslFilter(b.key as SSLFilter)}
-    className={`px-3 py-1 rounded-md ${
-      sslFilter === b.key
-        ? "bg-purple-600 text-white"
-        : "bg-gray-200"
-    }`}
-  >
-    {b.label}
-  </button>
-))}
+        </div>
+  {/* Health */}
+<div className="flex flex-col text-xs text-gray-400">
+<span className="text-xs text-gray-400">
+  Overall health (HTTP + SSL + errors)
+</span>
 </div>
 
-          <div className="ml-8 flex gap-4">
+<div className="flex gap-2">
+    {["ALL", "HEALTHY", "WARNING", "CRITICAL"].map(f => (
+      <button
+        key={f}
+        onClick={() => setHealthFilter(f as HealthFilter)}
+        className={`px-3 py-1 rounded-md ${
+          healthFilter === f
+            ? "bg-green-600 text-white"
+            : "bg-gray-200"
+        }`}
+      >
+        {f}
+      </button>
+    ))}
+  </div>
+</div>
+
+<div className="flex gap-2 flex-wrap">
+  {sslButtons.map(b => (
+    <button
+      key={b.key}
+      onClick={() => setSslFilter(b.key as SSLFilter)}
+      className={`px-3 py-1 rounded-md ${
+        sslFilter === b.key
+          ? "bg-purple-600 text-white"
+          : "bg-gray-200"
+      }`}
+    >
+      {b.label}
+    </button>
+  ))}
+</div>
+
+  {/* HTTP */}
+  <div className="flex gap-2 items-center">
+    <span className="text-xs text-gray-400">HTTP</span>
             {["ВСІ", "UP", "DOWN", "ERROR", "TIMEOUT"].map(s => (
               <button
                 key={s}
@@ -142,7 +176,7 @@ if (state === undefined && sslFilter !== "ALL") return false
               </button>
             ))}
           </div>
-        </div>
+          <div className="flex gap-2">
 
         <div className="flex gap-6 items-start">
             <div className="flex-1 space-y-4">
@@ -167,8 +201,7 @@ if (state === undefined && sslFilter !== "ALL") return false
           <div className="w-80">
             <TelegramConnect />
           </div>
-        </div>
-      </div>
+
 
       {showModal && (
         <AddSiteModal
@@ -177,5 +210,5 @@ if (state === undefined && sslFilter !== "ALL") return false
         />
       )}
     </div>
-  );
+    );
 }

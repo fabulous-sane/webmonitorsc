@@ -27,7 +27,7 @@ const cls = map[status] ?? "bg-gray-100 text-gray-500"
 const text = label[status] ?? "Unknown"
 
 return (
-  <span className={`px-3 py-1 text-xs rounded-full ${cls}`}>
+  <span className={`px-3 py-1 text-xs font-medium rounded-full ${cls}`}>
   {text}
     </span>
 );
