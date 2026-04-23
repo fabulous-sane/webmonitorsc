@@ -97,7 +97,7 @@ if (healthFilter !== "ALL") {
 
         <SystemSummary />
 
-  <div className="space-y-4">
+<div className="space-y-4">
 
   {/* Activity */}
   <div className="flex gap-2">
@@ -115,9 +115,8 @@ if (healthFilter !== "ALL") {
       </button>
     ))}
   </div>
-  </div>
 
-  {/* Health */}
+{/* Health */}
   <div>
     <div className="text-xs text-gray-400 mb-1">
       Overall health (HTTP + SSL + errors)
@@ -160,9 +159,8 @@ if (healthFilter !== "ALL") {
   </div>
 
   {/* HTTP */}
-<div>
+  <div>
   <div className="text-xs text-gray-400 mb-1">HTTP</div>
-
   <div className="flex gap-2">
     {["ВСІ", "UP", "DOWN", "ERROR", "TIMEOUT"].map(s => (
       <button
