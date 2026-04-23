@@ -97,7 +97,7 @@ if (healthFilter !== "ALL") {
 
         <SystemSummary />
 
-        <div className="space-y-4">
+  <div className="space-y-4">
 
   {/* Activity */}
   <div className="flex gap-2">
@@ -114,6 +114,7 @@ if (healthFilter !== "ALL") {
         {f}
       </button>
     ))}
+  </div>
   </div>
 
   {/* Health */}
