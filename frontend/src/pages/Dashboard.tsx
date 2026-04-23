@@ -102,6 +102,7 @@ if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
 
         <SystemSummary />
 
+{/* FILTERS */}
 <div className="space-y-4">
 
   {/* Activity */}
@@ -183,6 +184,8 @@ if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
   </div>
 </div>
 </div>
+</div>
+{/* CONTENT */}
         <div className="flex gap-6 items-start">
             <div className="flex-1 space-y-4">
 
@@ -218,3 +221,4 @@ if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
     </div>
   );
 }
+
