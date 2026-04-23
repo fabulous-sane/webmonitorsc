@@ -190,7 +190,7 @@ if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
 {/* CONTENT */}
 <div className="flex gap-6 items-start">
 
-    <div className="flex-1 space-y-4">
+    <div className="flex-1 min-w-0 space-y-4">
       {filteredSites.length === 0 ? (
         <div className="text-gray-400 text-sm">
           Немає сайтів

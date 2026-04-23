@@ -291,6 +291,14 @@ archived
   )}
 </div>
 </div>
+
+{expanded && (
+  <div className="space-y-1 text-xs text-gray-500">
+
+  <div className="text-xs text-gray-500">
+  Health = HTTP + SSL + Errors
+</div>
+
 <div className="flex gap-2 mt-4 text-sm">
   {["24h", "7d", "30d"].map(r => (
     <button
@@ -303,13 +311,6 @@ archived
       {r}
     </button>
   ))}
-</div>
-
-{expanded && (
-  <div className="space-y-1 text-xs text-gray-500">
-
-  <div className="text-xs text-gray-500">
-  Health = HTTP + SSL + Errors
 </div>
 
     <div className="mt-4 h-72">
