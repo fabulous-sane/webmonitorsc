@@ -159,22 +159,25 @@ if (healthFilter !== "ALL") {
   </div>
 
   {/* HTTP */}
-  <div>
-    <div className="text-xs text-gray-400 mb-1">HTTP</div>
-    <div className="flex gap-2">
-      {["ВСІ", "UP", "DOWN", "ERROR", "TIMEOUT"].map(s => (
-        <button
-          key={s}
-          onClick={() => setStatusFilter(s as StatusFilter)}
-          className={`px-3 py-1 rounded-md ${
-            statusFilter === s
-              ? "bg-black text-white"
-              : "bg-gray-200"
-          }`}
-        >
-          {s}
-        </button>
-      ))}
+<div>
+  <div className="text-xs text-gray-400 mb-1">HTTP</div>
+
+  <div className="flex gap-2">
+    {["ВСІ", "UP", "DOWN", "ERROR", "TIMEOUT"].map(s => (
+      <button
+        key={s}
+        onClick={() => setStatusFilter(s as StatusFilter)}
+        className={`px-3 py-1 rounded-md ${
+          statusFilter === s
+            ? "bg-black text-white"
+            : "bg-gray-200"
+        }`}
+      >
+        {s}
+      </button>
+    ))}
+  </div>
+</div>
 
         <div className="flex gap-6 items-start">
             <div className="flex-1 space-y-4">
@@ -206,7 +209,8 @@ if (healthFilter !== "ALL") {
           onClose={() => setShowModal(false)}
           onCreated={loadSites}
         />
+      )}
 
-)}
-
-
+    </div>
+  );
+}
