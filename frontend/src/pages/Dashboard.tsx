@@ -176,7 +176,7 @@ if (healthFilter !== "ALL") {
         </button>
       ))}
     </div>
-  </div>
+
 
         <div className="flex gap-6 items-start">
             <div className="flex-1 space-y-4">
@@ -196,7 +196,6 @@ if (healthFilter !== "ALL") {
                 onReactivated={loadSites}
               />
             ))}
-          </div>
 
           <div className="w-80">
             <TelegramConnect />
