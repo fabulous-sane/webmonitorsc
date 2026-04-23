@@ -84,7 +84,7 @@ if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
 })
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 flex flex-col">
       <Header />
 
       <div className="flex-1 max-w-6xl mx-auto w-full px-8 py-6 flex flex-col space-y-6">
@@ -99,7 +99,7 @@ if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
             + Додати сайт
           </button>
         </div>
-
+    <div className="space-y-6">
         <SystemSummary />
 
 {/* FILTERS */}
@@ -184,9 +184,10 @@ if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
   </div>
 </div>
 </div>
-</div>
+
 {/* CONTENT */}
-        <div className="flex gap-6 items-start">
+<div className="flex gap-6 items-start">
+
             <div className="flex-1 space-y-4">
 
             {filteredSites.length === 0 && (

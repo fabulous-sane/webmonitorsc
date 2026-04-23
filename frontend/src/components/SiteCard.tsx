@@ -365,10 +365,10 @@ archived
         </div>
 
         <div>
-            {!isHttpPoint && sev === null && "No SSL data"}
-            {sev === "bad" && "🔥 Problem"}
-            {sev === "warn" && "⚠ Warning"}
-{           sev === "good" && "✅ OK"}
+        {!isHttpPoint && sev === null && "No SSL data"}
+        {sev === "bad" && "🔥 Problem"}
+        {sev === "warn" && "⚠ Warning"}
+        {sev === "good" && "✅ OK"}
         </div>
 
         <div>
@@ -385,7 +385,7 @@ archived
               : `Expires in: ${p.ssl_days_left} days`}
           </div>
         )}
-      </div>
+    </div>
     );
   }}
 />
