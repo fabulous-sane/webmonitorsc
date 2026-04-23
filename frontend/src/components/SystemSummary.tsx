@@ -138,7 +138,7 @@ export default function SystemSummary() {
           />
         </div>
       </div>
-
+    </div>
       {/* RETENTION */}
       <div className="p-4 rounded-lg border">
   <div className="text-sm text-gray-500">Retention</div>
@@ -185,6 +185,6 @@ function Card({
     <div className={`p-4 rounded-lg border ${className}`}>
       <div className="text-sm text-gray-500">{label}</div>
       <div className="text-xl font-semibold">{value}</div>
-    </div>
-  );
+      </div>
+);
 }
