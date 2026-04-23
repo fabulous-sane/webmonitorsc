@@ -57,6 +57,7 @@ export default function SystemSummary() {
         <Card label="Активні сайти" value={data.active_sites} />
         <Card label="Архівовані" value={data.archived_sites} />
         <Card label="Перевірки (сьогодні)" value={data.checks_24h} />
+    </div>
         <div className="text-xs text-gray-400 mt-1">
     з моменту 00:00 UTC
   </div>
