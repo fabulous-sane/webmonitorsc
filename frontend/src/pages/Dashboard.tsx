@@ -59,27 +59,22 @@ const filteredSites = sites.filter(s => {
   if (activityFilter === "АКТИВНІ" && !s.is_active) return false
   if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
 
-  if (statusFilter === "DOWN" && !isProblem(s.last_status)) return false
   if (statusFilter !== "ВСІ" && statusFilter !== "DOWN" && s.last_status !== statusFilter) return false
 
-const sev = s.ssl_severity
 const state = s.ssl_state
 const isHttp = s.url.startsWith("http://")
 
-if (healthFilter === "CRITICAL" && s.health !== "critical") return false
-if (healthFilter === "WARNING" && s.health !== "warning") return false
-if (healthFilter === "HEALTHY" && s.health !== "healthy") return false
-
-if (sslFilter === "CRITICAL" && state !== "critical") return false
-if (sslFilter === "WARNING" && state !== "warning") return false
-
-if (sslFilter === "INVALID" && state !== "invalid") return false
-if (sslFilter === "OK" && state !== "ok") return false
-
-if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
-
-if (state === undefined && sslFilter !== "ALL") return false
-
+if (healthFilter !== "ALL") {
+  if (healthFilter === "CRITICAL" && s.health !== "critical") return false
+  if (healthFilter === "WARNING" && s.health !== "warning") return false
+  if (healthFilter === "HEALTHY" && s.health !== "healthy") return false
+} else {
+  if (sslFilter === "CRITICAL" && state !== "critical") return false
+  if (sslFilter === "WARNING" && state !== "warning") return false
+  if (sslFilter === "INVALID" && state !== "invalid") return false
+  if (sslFilter === "OK" && state !== "ok") return false
+  if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
+}
   return true
 })
 
@@ -102,38 +97,17 @@ if (state === undefined && sslFilter !== "ALL") return false
 
         <SystemSummary />
 
-        {/* Activity */}
-        <div className="space-y-3">
-        <div className="flex gap-2">
-          {["ВСІ", "АКТИВНІ", "АРХІВОВАНІ"].map(f => (
-            <button
-              key={f}
-              onClick={() => setActivityFilter(f as ActivityFilter)}
-              className={`px-4 py-1 rounded-md ${
-                activityFilter === f
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200"
-              }`}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
-  {/* Health */}
-<div className="flex flex-col text-xs text-gray-400">
-<span className="text-xs text-gray-400">
-  Overall health (HTTP + SSL + errors)
-</span>
-</div>
+        <div className="space-y-4">
 
-<div className="flex gap-2">
-    {["ALL", "HEALTHY", "WARNING", "CRITICAL"].map(f => (
+  {/* Activity */}
+  <div className="flex gap-2">
+    {["ВСІ", "АКТИВНІ", "АРХІВОВАНІ"].map(f => (
       <button
         key={f}
-        onClick={() => setHealthFilter(f as HealthFilter)}
-        className={`px-3 py-1 rounded-md ${
-          healthFilter === f
-            ? "bg-green-600 text-white"
+        onClick={() => setActivityFilter(f as ActivityFilter)}
+        className={`px-4 py-1 rounded-md ${
+          activityFilter === f
+            ? "bg-blue-600 text-white"
             : "bg-gray-200"
         }`}
       >
@@ -141,43 +115,70 @@ if (state === undefined && sslFilter !== "ALL") return false
       </button>
     ))}
   </div>
-</div>
 
-<div className="flex gap-2 flex-wrap">
-  {sslButtons.map(b => (
-    <button
-      key={b.key}
-      onClick={() => setSslFilter(b.key as SSLFilter)}
-      className={`px-3 py-1 rounded-md ${
-        sslFilter === b.key
-          ? "bg-purple-600 text-white"
-          : "bg-gray-200"
-      }`}
-    >
-      {b.label}
-    </button>
-  ))}
-</div>
+  {/* Health */}
+  <div>
+    <div className="text-xs text-gray-400 mb-1">
+      Overall health (HTTP + SSL + errors)
+    </div>
+    <div className="flex gap-2">
+      {["ALL", "HEALTHY", "WARNING", "CRITICAL"].map(f => (
+        <button
+          key={f}
+          onClick={() => setHealthFilter(f as HealthFilter)}
+          className={`px-3 py-1 rounded-md ${
+            healthFilter === f
+              ? "bg-green-600 text-white"
+              : "bg-gray-200"
+          }`}
+        >
+          {f}
+        </button>
+      ))}
+    </div>
+  </div>
+
+  {/* SSL */}
+  <div>
+    <div className="text-xs text-gray-400 mb-1">SSL</div>
+    <div className="flex gap-2 flex-wrap">
+      {sslButtons.map(b => (
+        <button
+          key={b.key}
+          onClick={() => setSslFilter(b.key as SSLFilter)}
+          className={`px-3 py-1 rounded-md ${
+            sslFilter === b.key
+              ? "bg-purple-600 text-white"
+              : "bg-gray-200"
+          }`}
+        >
+          {b.label}
+        </button>
+      ))}
+    </div>
+  </div>
 
   {/* HTTP */}
-  <div className="flex gap-2 items-center">
-    <span className="text-xs text-gray-400">HTTP</span>
-            {["ВСІ", "UP", "DOWN", "ERROR", "TIMEOUT"].map(s => (
-              <button
-                key={s}
-                onClick={() => setStatusFilter(s as StatusFilter)}
-                className={`px-3 py-1 rounded-md ${
-                  statusFilter === s
-                    ? "bg-black text-white"
-                    : "bg-gray-200"
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2">
+  <div>
+    <div className="text-xs text-gray-400 mb-1">HTTP</div>
+    <div className="flex gap-2">
+      {["ВСІ", "UP", "DOWN", "ERROR", "TIMEOUT"].map(s => (
+        <button
+          key={s}
+          onClick={() => setStatusFilter(s as StatusFilter)}
+          className={`px-3 py-1 rounded-md ${
+            statusFilter === s
+              ? "bg-black text-white"
+              : "bg-gray-200"
+          }`}
+        >
+          {s}
+        </button>
+      ))}
+    </div>
+  </div>
 
+</div>
         <div className="flex gap-6 items-start">
             <div className="flex-1 space-y-4">
 
