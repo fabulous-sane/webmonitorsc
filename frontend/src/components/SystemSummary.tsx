@@ -171,8 +171,6 @@ export default function SystemSummary() {
     </div>
   )}
 </div>
-  );
-}
 
 function Card({
   label,
