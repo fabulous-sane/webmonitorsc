@@ -213,7 +213,7 @@ if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
           </div>
 
         </div>
-
+    </div>
         </div>
       {showModal && (
         <AddSiteModal
