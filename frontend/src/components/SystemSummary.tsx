@@ -140,6 +140,7 @@ export default function SystemSummary() {
         </div>
       </div>
     </div>
+    )
       {/* RETENTION */}
       <div className="p-4 rounded-lg border">
   <div className="text-sm text-gray-500">Retention</div>
