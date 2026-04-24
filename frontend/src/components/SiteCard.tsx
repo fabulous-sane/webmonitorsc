@@ -29,9 +29,9 @@ interface Props {
   ssl_state?: SSLState | null;
   ssl_days_left?: number | null;
   ssl_severity?: SSLSeverity;
-  p95_latency?: number
-  error_rate?: number
-  health?: "healthy" | "warning" | "critical" | "no_data"
+  p95_latency?: number;
+  error_rate?: number;
+  health?: "healthy" | "warning" | "critical" | "no_data";
   onDeleted?: () => void;
   onReactivated?: () => void;
 }
@@ -206,9 +206,6 @@ archived
     ? `SSL: ${sslLabel}`
     : null}
 </div>
-
-
-
       {/* HEADER */}
       <div className="flex justify-between items-start">
         <div>

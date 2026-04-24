@@ -8,7 +8,7 @@ import SystemSummary from "../components/SystemSummary";
 import { isProblem } from "../types/status";
 import type { DashboardItem, SiteStatus } from "../types/api";
 
-type HealthFilter = "ВСІ" | "HEALTHY" | "WARNING" | "CRITICAL"
+type HealthFilter = "ALL" | "HEALTHY" | "WARNING" | "CRITICAL";
 type StatusFilter = "ВСІ" | "UP" | "DOWN" | "ERROR" | "TIMEOUT";
 type ActivityFilter = "ВСІ" | "АКТИВНІ" | "АРХІВОВАНІ";
 type SSLFilter =
@@ -17,13 +17,14 @@ type SSLFilter =
   | "WARNING"
   | "CRITICAL"
   | "INVALID"
-  | "NO_DATA";
+  | "NO_DATA"
+  | "NO_SSL";
 
 export default function Dashboard() {
   const [sites, setSites] = useState<DashboardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [healthFilter, setHealthFilter] = useState<HealthFilter>("ВСІ")
+  const [healthFilter, setHealthFilter] = useState<HealthFilter>("ALL");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ВСІ");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("ВСІ");
   const [sslFilter, setSslFilter] = useState<SSLFilter>("ALL");
@@ -56,19 +57,19 @@ export default function Dashboard() {
 
   if (loading) return <div className="p-10">Завантаження...</div>;
 
-const filteredSites = sites.filter(s => {
+const filteredSites = sites.filter(s => {const state = s.ssl_state
   if (activityFilter === "АКТИВНІ" && !s.is_active) return false
   if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
 
   if (statusFilter === "DOWN" && !isProblem(s.last_status)) return false
 
-if (statusFilter !== "ВСІ" && statusFilter !== "DOWN" && s.last_status !== statusFilter)
-  return false
+if (statusFilter !== "ВСІ" && statusFilter !== "DOWN") {
+  if (!s.last_status || s.last_status !== statusFilter) return false
+}
 
-const state = s.ssl_state
 const isHttp = s.ssl_state === "http"
 
-if (healthFilter !== "ВСІ") {
+if (healthFilter !== "ALL") {
   if (healthFilter === "CRITICAL" && s.health !== "critical") return false
   if (healthFilter === "WARNING" && s.health !== "warning") return false
   if (healthFilter === "HEALTHY" && s.health !== "healthy") return false
