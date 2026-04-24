@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID
 from html import escape
-
+from zoneinfo import ZoneInfo
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import Command
 from aiogram.enums import ParseMode
@@ -79,7 +79,10 @@ async def safe_send(chat_id: int, text: str, reply_markup=None):
 
 async def safe_edit(message: types.Message, text: str, keyboard=None):
     try:
-        await message.edit_text(text, reply_markup=keyboard)
+        if message.text == text:
+            await message.edit_reply_markup(reply_markup=keyboard)
+        else:
+            await message.edit_text(text, reply_markup=keyboard)
     except TelegramBadRequest as e:
         logger.debug("Edit failed: %s", e)
 
@@ -213,7 +216,7 @@ async def site_details(callback: CallbackQuery):
 
             if last_checks:
                 last = last_checks[0]
-                last_time = last.checked_at.strftime("%d.%m %H:%M")
+                last_time = last.checked_at.astimezone(ZoneInfo("Europe/Kyiv")).strftime("%d.%m %H:%M")
                 status = get_status_label(last.status)
                 last_line = (
                     f"🕒 <b>Остання перевірка:</b>\n"
@@ -225,14 +228,15 @@ async def site_details(callback: CallbackQuery):
             history_lines = []
             for row in last_checks:
                 emoji = get_status_emoji(row.status)
-                time_str = row.checked_at.strftime("%H:%M:%S")
+                local_dt = row.checked_at.astimezone(ZoneInfo("Europe/Kyiv"))
+                time_str = local_dt.strftime("%H:%M:%S")
                 history_lines.append(
                     f"{emoji} {time_str} | {row.response_time_ms or '-'} ms"
                 )
 
             history_text = "\n".join(history_lines) if history_lines else "Немає даних"
 
-            emoji = get_status_emoji(site.last_status)
+            emoji = get_status_emoji(site.last_status) if site.last_status else "⚪"
 
             status = get_status_label(site.last_status)
 

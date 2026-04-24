@@ -5,8 +5,10 @@ import Header from "../components/Header";
 import TelegramConnect from "../components/TelegramConnect";
 import AddSiteModal from "../components/AddSiteModal";
 import SystemSummary from "../components/SystemSummary";
+import RetentionPanel from "../components/RetentionPanel";
 import { isProblem } from "../types/status";
 import type { DashboardItem, SiteStatus } from "../types/api";
+import type { SystemStatus } from "../components/SystemSummary";
 
 type HealthFilter = "ALL" | "HEALTHY" | "WARNING" | "CRITICAL";
 type StatusFilter = "ВСІ" | "UP" | "DOWN" | "ERROR" | "TIMEOUT";
@@ -55,10 +57,17 @@ export default function Dashboard() {
     return () => clearInterval(interval);
   }, []);
 
-  if (loading) return <div className="p-10">Завантаження...</div>;
+const [systemData, setSystemData] = useState<SystemStatus | null>(null)
+    useEffect(() => {
+  api.get("/system/status")
+    .then(res => setSystemData(res.data))
+}, [])
+
+if (loading) return <div className="p-10">Завантаження...</div>;
 
 const filteredSites = sites.filter(s => {
-  const state = s.ssl_state ?? "no_data"
+    const state = s.ssl_state ?? "no_data"
+    const isHttp = s.ssl_state === "http"
   if (activityFilter === "АКТИВНІ" && !s.is_active) return false
   if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
 
@@ -78,9 +87,8 @@ if (sslFilter === "CRITICAL" && state !== "critical") return false
 if (sslFilter === "WARNING" && state !== "warning") return false
 if (sslFilter === "INVALID" && state !== "invalid") return false
 if (sslFilter === "OK" && state !== "ok") return false
-
 if (sslFilter === "NO_DATA" && state !== "no_data") return false
-if (sslFilter === "NO_SSL" && state !== "http") return false
+if (sslFilter === "NO_SSL" && !isHttp) return false
 
   return true
 })
@@ -103,7 +111,8 @@ if (sslFilter === "NO_SSL" && state !== "http") return false
         </div>
     <div className="space-y-6">
 
-  <SystemSummary />
+<SystemSummary data={systemData} />
+{systemData && <RetentionPanel data={systemData} />}
 
   {/* FILTERS */}
   <div className="space-y-4">

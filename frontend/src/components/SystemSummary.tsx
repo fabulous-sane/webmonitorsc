@@ -32,14 +32,7 @@ interface SystemStatus {
   retention_delayed: boolean;
 }
 
-export default function SystemSummary() {
-  const [data, setData] = useState<SystemStatus | null>(null);
-
-  useEffect(() => {
-    api.get("/system/status")
-      .then(res => setData(res.data))
-      .catch(console.error);
-  }, []);
+export default function SystemSummary({ data }: { data: SystemStatus | null }) {
 
   if (!data) {
     return (
@@ -64,33 +57,6 @@ export default function SystemSummary() {
         <Card label="Архівовані" value={data.archived_sites} />
         <Card label="Перевірки (сьогодні)" value={data.checks_24h} />
     </div>
-        <div className="text-xs text-gray-400">
-    з моменту 00:00 UTC
-  </div>
-  <div className="text-xs text-gray-400">
-  Зберігаємо: {data.data_retention_days} днів
-</div>
-
-<div className="text-xs text-gray-400">
-  Дані старші за цю дату видаляються: {new Date(data.data_cutoff_date).toLocaleString()}
-</div>
-
-<div className="text-xs text-gray-400 mt-1">
-    Останнє очищення: {data.retention_last_run
-      ? new Date(data.retention_last_run).toLocaleString()
-      : "—"}
-  </div>
-
-  <div className="text-xs text-gray-400">
-    Очищено: {data.retention_deleted_last ?? 0}
-  </div>
-
-  {data.retention_next_run && (
-    <div className="text-xs text-gray-400">
-      Наступне очищення: {new Date(data.retention_next_run).toLocaleString()}
-    </div>
-  )}
-      </div>
 
       {/* SSL SITES */}
       <div>
@@ -118,21 +84,10 @@ export default function SystemSummary() {
           />
 
           <Card
-            label="No data"
-            value={data.ssl_no_data_sites}
-            className="bg-gray-100"
-          />
-
-          <Card
             label="OK"
             value={data.ssl_ok_sites}
             className="bg-green-50 text-green-700"
           />
-          <Card
-  label="SSL проблемні"
-  value={data.problematic_sites ?? 0}
-  className="bg-red-50 text-red-700"
-/>
 
 <Card
   label="Без SSL"
@@ -175,24 +130,24 @@ export default function SystemSummary() {
         </div>
       </div>
       {/* RETENTION */}
-      <div className="p-4 rounded-lg border">
-  <div className="text-sm text-gray-500">Очищення</div>
+      <div className="p-4 rounded-lg border space-y-2">
+        <div className="text-sm font-medium text-gray-500">
+        Стан очищення
+        </div>
 
-  {data.retention_broken ? (
-    <div className="text-red-600 font-semibold">❌ Планувальник не працює</div>
-  ) : data.retention_never_run ? (
+    {data.retention_broken ? (
+    <div className="text-red-600">❌ Планувальник не працює</div>
+    ) : data.retention_never_run ? (
     <div className="text-yellow-600">⏳ Не запускалася</div>
-  ) : data.retention_delayed ? (
+    ) : data.retention_delayed ? (
     <div className="text-orange-600">⚠ Затримується</div>
-  ) : (
-    <div className="text-green-600">
-  ✅ Працює нормально
-</div>
-  )}
-
-</div>
-</div>
-);
+    ) : (
+    <div className="text-green-600">✅ Працює нормально</div>
+    )}
+    </div>
+    </div>
+    </div>
+    );
 }
 
 function Card({
@@ -208,6 +163,6 @@ function Card({
     <div className={`p-4 rounded-lg border ${className}`}>
       <div className="text-sm text-gray-500">{label}</div>
       <div className="text-xl font-semibold">{value}</div>
-      </div>
+     </div>
 );
 }

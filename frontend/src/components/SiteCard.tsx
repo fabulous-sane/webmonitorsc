@@ -63,10 +63,8 @@ export default function SiteCard({
   const [range, setRange] = useState<"24h" | "7d" | "30d">("24h");
   const [intervalEdit, setIntervalEdit] = useState(check_interval);
 
-  const effectiveSSLState =
-  ssl_state === "http"
-    ? "http"
-    : ssl_state ?? "no_data"
+  function isHttpSite(state?: string | null) {return state === "http"}
+  const effectiveSSLState = ssl_state ?? "no_data"
 
   const sslLabels: Record<SSLState, string> = {
   critical: "🔥 Критично",
@@ -76,8 +74,17 @@ export default function SiteCard({
   ok: "SSL OK",
 };
 
+const formatDate = (d: string | null) =>
+  d
+    ? new Date(d).toLocaleString("uk-UA", {
+        timeZone: "Europe/Kyiv",
+      })
+    : "—"
+
 const sslLabel = useMemo(() => {
   if (effectiveSSLState === "http") return "Без SSL (HTTP)"
+  if (!effectiveSSLState) return "—"
+
   return sslLabels[effectiveSSLState as SSLState] ?? "—"
 }, [effectiveSSLState])
 
@@ -182,9 +189,9 @@ className={`rounded-xl p-6 shadow border-2 transition ${
 archived
     ? "border-gray-400 opacity-70"
     : health === "critical"
-    ? "border-red-600 bg-red-50"
+    ? "border-red-600"
     : health === "warning"
-    ? "border-yellow-400 bg-yellow-50"
+    ? "border-yellow-400"
     : "border-gray-300"
 }`}
 >
@@ -224,7 +231,7 @@ archived
               Зберегти
             </button>
             · Остання перевірка: {last_checked_at
-            ? new Date(last_checked_at).toLocaleString([], {
+            ? formatDate(last_checked_at)([], {
             day: "2-digit",
             month: "2-digit",
             hour: "2-digit",
@@ -348,17 +355,17 @@ archived
 
     const p = payload?.[0]?.payload;
     if (!p) return null;
-    const sev = p.ssl_severity ?? null;
     const pointState = p.ssl_state ?? "no_data"
     const isHttpPoint = pointState === "http"
 
-    const pointLabel = isHttpPoint
+    const pointLabel =
+    isHttpPoint
     ? "Без SSL (HTTP)"
     : sslLabels[pointState as SSLState] ?? "—"
 
     return (
       <div className="bg-white p-2 border rounded shadow text-xs">
-        <div>{new Date(p.time).toLocaleString()}</div>
+        <div>{new Date(p.time).toLocaleString("uk-UA", {timeZone: "Europe/Kyiv"})}</div>
 
         <div>⏱ {p.response_time ?? "—"} ms</div>
 
@@ -366,7 +373,7 @@ archived
           Статус: {p.status ? (statusLabels[p.status as keyof typeof statusLabels] ?? "—") : "—"}
         </div>
 
-        <div>🔐 SSL: {pointLabel}</div>
+        <div>🔐 {pointLabel}</div>
 
         <div>
         Здоров'я:
@@ -379,8 +386,8 @@ archived
         {p.ssl_days_left != null && (
           <div>
             {p.ssl_days_left <= 0
-              ? "Термін дії закінчився"
-              : `Закінчується через: ${p.ssl_days_left} днів`}
+              ? "Термін дії SSL-сертифікату закінчився"
+              : `Термін дії  SSL-сертифікату закінчується через: ${p.ssl_days_left} днів`}
           </div>
         )}
     </div>
