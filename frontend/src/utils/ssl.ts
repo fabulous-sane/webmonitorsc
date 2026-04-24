@@ -1,4 +1,4 @@
-const normalizeSSL = (state?: string | null) => {
+export const normalizeSSL = (state?: string | null) => {
   if (!state) return "no_data"
   if (state === "http") return "http"
   return state
