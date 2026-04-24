@@ -128,25 +128,8 @@ export default function SystemSummary({ data }: { data: SystemStatus | null }) {
           />
         </div>
       </div>
-
-      {/* RETENTION */}
-      <div className="p-4 rounded-lg border space-y-2">
-        <div className="text-sm font-medium text-gray-500">
-        Стан очищення
-        </div>
-
-    {data.retention_broken ? (
-    <div className="text-red-600">❌ Планувальник не працює</div>
-    ) : data.retention_never_run ? (
-    <div className="text-yellow-600">⏳ Не запускалася</div>
-    ) : data.retention_delayed ? (
-    <div className="text-orange-600">⚠ Затримується</div>
-    ) : (
-    <div className="text-green-600">✅ Працює нормально</div>
-    )}
     </div>
-    </div>
-    </div>
+   </div>
 );}
 
 function Card({

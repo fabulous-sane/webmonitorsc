@@ -2,7 +2,6 @@ import { normalizeSSL, sslMeta } from "../utils/ssl"
 import type { SiteStatus, SSLState, SSLSeverity } from "../types/api";
 import { useState, useEffect, useMemo } from "react";
 import api from "../api/axios";
-import { isProblem } from "../types/status";
 import StatusBadge from "./StatusBadge";
 import type { Check } from "../types/api";
 import {
@@ -79,9 +78,11 @@ const formatDate = (d: string | null) =>
     : "—"
 
 const state = normalizeSSL(ssl_state)
-const meta = sslMeta[state]
 
-const sslLabel = meta.label
+const sslLabel =
+  state === "http"
+    ? "Без SSL (HTTP)"
+    : sslMeta[state as keyof typeof sslMeta]?.label ?? "—"
 
   useEffect(() => {
     if (!expanded) return;
@@ -92,6 +93,7 @@ const sslLabel = meta.label
       params: { range }
     })
       .then(res => setRawData(res.data ?? []))
+      .catch(() => setRawData([]))
       .finally(() => setLoading(false));
 
   }, [expanded, site_id, range]);
@@ -103,9 +105,7 @@ const chartData = useMemo(() => {
   .filter(c => c.checked_at)
   .map(c => ({
     time: new Date(c.checked_at!).getTime(),
-    response_time: c.avg_response_time_ms != null
-  ? Number(c.avg_response_time_ms)
-  : null,
+    response_time: c.avg_response_time_ms ?? c.response_time_ms ?? null,
     status: c.status,
     ssl_state: normalizeSSL(c.ssl_state),
     ssl_days_left: c.ssl_days_left,
@@ -331,13 +331,18 @@ archived
            <YAxis domain={[0, (dataMax: number) => dataMax * 1.2]} />
 
             <Tooltip
-  content={({ active, payload }) => {
+    content={({ active, payload }) => {
     if (!active || !payload?.length) return null;
 
     const p = payload?.[0]?.payload;
     if (!p) return null;
     const pointState = normalizeSSL(p.ssl_state)
     const pointMeta = sslMeta[pointState]
+
+    const pointLabel =
+    pointState === "http"
+    ? "Без SSL (HTTP)"
+    : sslMeta[pointState as keyof typeof sslMeta]?.label ?? "—"
 
     return (
       <div className="bg-white p-2 border rounded shadow text-xs">
@@ -352,8 +357,14 @@ archived
         </div>
 
         <div className="font-medium">
-        {pointMeta.label}
+        {pointLabel}
         </div>
+
+        {pointState === "http" && (
+  <div className="text-xs text-orange-600">
+    Причина: HTTP без SSL
+  </div>
+)}
 
         <div>
         Здоров'я:
@@ -391,7 +402,7 @@ dot={(props) => {
     healthy: "#16a34a"
   }
 
-  return <circle r={3} fill={colorMap[payload.health] || "#9ca3af"} />
+  return <circle r={3} fill={colorMap[payload.health as keyof typeof colorMap] || "#9ca3af"} />
 }}
 />
           </LineChart>

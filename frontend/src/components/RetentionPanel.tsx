@@ -6,29 +6,30 @@ export default function RetentionPanel({ data }: { data: SystemStatus }) {
   return (
     <div className="bg-white rounded-xl shadow-sm border">
 
-      <button
-        onClick={() => setOpen(!open)}
-        className="w-full text-left p-4 flex justify-between items-center"
-      >
-        <span className="text-sm font-medium text-gray-600">
-          Система зберігання даних
-        </span>
+     <button
+  onClick={() => setOpen(!open)}
+  className="w-full flex justify-between items-center p-4"
+>
+  <span className="text-sm font-medium text-gray-600">
+    Система зберігання даних
+  </span>
 
-        <span className="text-xs text-gray-400">
-          {open ? "▲" : "▼"}
-        </span>
-      </button>
+  <span className="text-xs text-gray-400">
+    {open ? "Згорнути" : "Розгорнути"}
+  </span>
+</button>
 
       {open && (
   <div className="space-y-2 text-xs text-gray-500">
+
     <div className="p-4 border-b">
-  {data.retention_broken
-    ? "❌ Зламано"
-    : data.retention_never_run
-    ? "⏳ Не запускалась"
-    : data.retention_delayed
-    ? "⚠ Затримка"
-    : "✅ OK"}
+      {data.retention_broken
+        ? "❌ Зламано"
+        : data.retention_never_run
+        ? "⏳ Не запускалась"
+        : data.retention_delayed
+        ? "⚠ Затримка"
+        : "✅ Працює нормально"}
     </div>
 
     <div>
@@ -40,8 +41,8 @@ export default function RetentionPanel({ data }: { data: SystemStatus }) {
       <br />
       {data.data_cutoff_date
         ? new Date(data.data_cutoff_date).toLocaleString("uk-UA", {
-  timeZone: "Europe/Kyiv"
-})
+            timeZone: "Europe/Kyiv",
+          })
         : "—"}
     </div>
 
@@ -49,8 +50,8 @@ export default function RetentionPanel({ data }: { data: SystemStatus }) {
       Останнє очищення:
       {data.retention_last_run
         ? new Date(data.retention_last_run).toLocaleString("uk-UA", {
-  timeZone: "Europe/Kyiv"
-})
+            timeZone: "Europe/Kyiv",
+          })
         : " —"}
     </div>
 
@@ -62,8 +63,8 @@ export default function RetentionPanel({ data }: { data: SystemStatus }) {
       Наступне очищення:
       {data.retention_next_run
         ? new Date(data.retention_next_run).toLocaleString("uk-UA", {
-  timeZone: "Europe/Kyiv"
-})
+            timeZone: "Europe/Kyiv",
+          })
         : " —"}
     </div>
   </div>
