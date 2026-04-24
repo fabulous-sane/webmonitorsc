@@ -1,3 +1,4 @@
+import { normalizeSSL, sslMeta } from "../utils/ssl"
 import type { SiteStatus, SSLState, SSLSeverity } from "../types/api";
 import { useState, useEffect, useMemo } from "react";
 import api from "../api/axios";
@@ -63,16 +64,12 @@ export default function SiteCard({
   const [range, setRange] = useState<"24h" | "7d" | "30d">("24h");
   const [intervalEdit, setIntervalEdit] = useState(check_interval);
 
-  function isHttpSite(state?: string | null) {return state === "http"}
-  const effectiveSSLState = ssl_state ?? "no_data"
-
-  const sslLabels: Record<SSLState, string> = {
-  critical: "🔥 Критично",
-  warning: "⚠️ Попередження",
-  invalid: "❌ Недійсний",
-  no_data: "Немає даних",
-  ok: "SSL OK",
-};
+  const statusLabels: Record<SiteStatus, string> = {
+  UP: "Працює",
+  DOWN: "Недоступний",
+  TIMEOUT: "Таймаут",
+  ERROR: "Помилка",
+}
 
 const formatDate = (d: string | null) =>
   d
@@ -81,19 +78,10 @@ const formatDate = (d: string | null) =>
       })
     : "—"
 
-const sslLabel = useMemo(() => {
-  if (effectiveSSLState === "http") return "Без SSL (HTTP)"
-  if (!effectiveSSLState) return "—"
+const state = normalizeSSL(ssl_state)
+const meta = sslMeta[state]
 
-  return sslLabels[effectiveSSLState as SSLState] ?? "—"
-}, [effectiveSSLState])
-
-const statusLabels: Record<SiteStatus, string> = {
-  UP: "Працює",
-  DOWN: "Недоступний",
-  TIMEOUT: "Таймаут",
-  ERROR: "Помилка",
-}
+const sslLabel = meta.label
 
   useEffect(() => {
     if (!expanded) return;
@@ -114,12 +102,12 @@ const chartData = useMemo(() => {
   return rawData
   .filter(c => c.checked_at)
   .map(c => ({
-  time: new Date(c.checked_at!).getTime(),
+    time: new Date(c.checked_at!).getTime(),
     response_time: c.avg_response_time_ms != null
   ? Number(c.avg_response_time_ms)
   : null,
     status: c.status,
-    ssl_state: c.ssl_state,
+    ssl_state: normalizeSSL(c.ssl_state),
     ssl_days_left: c.ssl_days_left,
     ssl_severity: c.ssl_severity,
     health: c.health,
@@ -230,14 +218,7 @@ archived
             >
               Зберегти
             </button>
-            · Остання перевірка: {last_checked_at
-            ? formatDate(last_checked_at)([], {
-            day: "2-digit",
-            month: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            })
-            : "—"}
+            · Остання перевірка: {formatDate(last_checked_at)}
           </div>
         </div>
         <div className="flex gap-2 flex-wrap mt-2">
@@ -343,8 +324,8 @@ archived
             tickFormatter={(v) => {
             const d = new Date(v)
             return range === "24h"
-            ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            : d.toLocaleDateString([], { day: '2-digit', month: '2-digit' })
+            ? d.toLocaleTimeString("uk-UA", { hour: '2-digit', minute: '2-digit', timeZone: "Europe/Kyiv" })
+            : d.toLocaleDateString("uk-UA", { day: '2-digit', month: '2-digit', timeZone: "Europe/Kyiv" })
             }}
             />
            <YAxis domain={[0, (dataMax: number) => dataMax * 1.2]} />
@@ -355,17 +336,14 @@ archived
 
     const p = payload?.[0]?.payload;
     if (!p) return null;
-    const pointState = p.ssl_state ?? "no_data"
-    const isHttpPoint = pointState === "http"
-
-    const pointLabel =
-    isHttpPoint
-    ? "Без SSL (HTTP)"
-    : sslLabels[pointState as SSLState] ?? "—"
+    const pointState = normalizeSSL(p.ssl_state)
+    const pointMeta = sslMeta[pointState]
 
     return (
       <div className="bg-white p-2 border rounded shadow text-xs">
-        <div>{new Date(p.time).toLocaleString("uk-UA", {timeZone: "Europe/Kyiv"})}</div>
+        <div>
+        {new Date(p.time).toLocaleString("uk-UA", { timeZone: "Europe/Kyiv" })}
+        </div>
 
         <div>⏱ {p.response_time ?? "—"} ms</div>
 
@@ -373,7 +351,9 @@ archived
           Статус: {p.status ? (statusLabels[p.status as keyof typeof statusLabels] ?? "—") : "—"}
         </div>
 
-        <div>🔐 {pointLabel}</div>
+        <div className="font-medium">
+        {pointMeta.label}
+        </div>
 
         <div>
         Здоров'я:

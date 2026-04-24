@@ -39,14 +39,18 @@ export default function RetentionPanel({ data }: { data: SystemStatus }) {
       Дані старші за цю дату будуть видалені:
       <br />
       {data.data_cutoff_date
-        ? new Date(data.data_cutoff_date).toLocaleString()
+        ? new Date(data.data_cutoff_date).toLocaleString("uk-UA", {
+  timeZone: "Europe/Kyiv"
+})
         : "—"}
     </div>
 
           <div>
       Останнє очищення:
       {data.retention_last_run
-        ? new Date(data.retention_last_run).toLocaleString()
+        ? new Date(data.retention_last_run).toLocaleString("uk-UA", {
+  timeZone: "Europe/Kyiv"
+})
         : " —"}
     </div>
 
@@ -57,7 +61,9 @@ export default function RetentionPanel({ data }: { data: SystemStatus }) {
     <div>
       Наступне очищення:
       {data.retention_next_run
-        ? new Date(data.retention_next_run).toLocaleString()
+        ? new Date(data.retention_next_run).toLocaleString("uk-UA", {
+  timeZone: "Europe/Kyiv"
+})
         : " —"}
     </div>
   </div>

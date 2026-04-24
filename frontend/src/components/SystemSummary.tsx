@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react";
 import api from "../api/axios";
 
 interface SystemStatus {
@@ -43,15 +42,15 @@ export default function SystemSummary({ data }: { data: SystemStatus | null }) {
   }
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-sm border space-y-6">
+  <div className="bg-white p-6 rounded-xl shadow-sm border space-y-6">
 
       {/* HEADER */}
       <div className="text-lg font-semibold">
-        Огляд системи
-      </div>
+      Огляд системи
+    </div>
 
+    <div className="space-y-4">
       {/* GLOBAL */}
-    <div className="space-y-2">
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
         <Card label="Активні сайти" value={data.active_sites} />
         <Card label="Архівовані" value={data.archived_sites} />
@@ -89,11 +88,11 @@ export default function SystemSummary({ data }: { data: SystemStatus | null }) {
             className="bg-green-50 text-green-700"
           />
 
-<Card
-  label="Без SSL"
-  value={data.ssl_no_ssl_sites ?? 0}
-  className="bg-gray-200"
-/>
+           <Card
+            label="Без SSL"
+            value={data.ssl_no_ssl_sites ?? 0}
+            className="bg-gray-200"
+            />
         </div>
       </div>
 
@@ -129,6 +128,7 @@ export default function SystemSummary({ data }: { data: SystemStatus | null }) {
           />
         </div>
       </div>
+
       {/* RETENTION */}
       <div className="p-4 rounded-lg border space-y-2">
         <div className="text-sm font-medium text-gray-500">
@@ -147,8 +147,7 @@ export default function SystemSummary({ data }: { data: SystemStatus | null }) {
     </div>
     </div>
     </div>
-    );
-}
+);}
 
 function Card({
   label,
@@ -166,3 +165,5 @@ function Card({
      </div>
 );
 }
+
+
