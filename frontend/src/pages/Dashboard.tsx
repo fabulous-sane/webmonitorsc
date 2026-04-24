@@ -132,21 +132,21 @@ if (sslFilter === "NO_SSL" && state !== "http") return false
       </div>
       <div className="flex gap-2">
         {[
-  { key: "ВСІ", label: "ВСІ" },
+  { key: "ALL", label: "ВСІ" },
   { key: "HEALTHY", label: "Нормально" },
   { key: "WARNING", label: "Попередження" },
   { key: "CRITICAL", label: "Критично" },
 ].map(f => (
           <button
-            key={f}
-            onClick={() => setHealthFilter(f as HealthFilter)}
+            key={f.key}
+            onClick={() => setHealthFilter(f.key as HealthFilter)}
             className={`px-3 py-1 rounded-md ${
               healthFilter === f
                 ? "bg-green-600 text-white"
                 : "bg-gray-200"
             }`}
           >
-            {f}
+            {f.label}
           </button>
         ))}
       </div>
@@ -157,7 +157,7 @@ if (sslFilter === "NO_SSL" && state !== "http") return false
       <div className="text-xs text-gray-400 mb-1">SSL</div>
       <div className="flex gap-2 flex-wrap">
         {sslButtons.map(b => (
-          <button
+            <button
             key={b.key}
             onClick={() => setSslFilter(b.key as SSLFilter)}
             className={`px-3 py-1 rounded-md ${
@@ -167,8 +167,8 @@ if (sslFilter === "NO_SSL" && state !== "http") return false
             }`}
           >
             {b.label}
-          </button>
-        ))}
+  </button>
+))}
       </div>
     </div>
 
