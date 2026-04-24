@@ -10,6 +10,7 @@ interface SystemStatus {
   ssl_warning_sites: number;
   ssl_invalid_sites: number;
   ssl_no_data_sites: number;
+  ssl_no_ssl_sites: number;
   ssl_ok_sites: number;
 
   problematic_sites: number;
@@ -71,11 +72,24 @@ export default function SystemSummary() {
 </div>
 
 <div className="text-xs text-gray-400">
-  Будуть видалені записи старші за: {new Date(data.data_cutoff_date).toLocaleString()}
+  Дані старші за цю дату видаляються: {new Date(data.data_cutoff_date).toLocaleString()}
 </div>
-<div className="text-xs text-gray-400">
-  Наступне очищення: {new Date(data.retention_next_run).toLocaleString()}
-</div>
+
+<div className="text-xs text-gray-400 mt-1">
+    Останнє очищення: {data.retention_last_run
+      ? new Date(data.retention_last_run).toLocaleString()
+      : "—"}
+  </div>
+
+  <div className="text-xs text-gray-400">
+    Очищено: {data.retention_deleted_last ?? 0}
+  </div>
+
+  {data.retention_next_run && (
+    <div className="text-xs text-gray-400">
+      Наступне очищення: {new Date(data.retention_next_run).toLocaleString()}
+    </div>
+  )}
       </div>
 
       {/* SSL SITES */}
@@ -118,6 +132,12 @@ export default function SystemSummary() {
   label="SSL проблемні"
   value={data.problematic_sites ?? 0}
   className="bg-red-50 text-red-700"
+/>
+
+<Card
+  label="Без SSL"
+  value={data.ssl_no_ssl_sites ?? 0}
+  className="bg-gray-200"
 />
         </div>
       </div>
@@ -170,21 +190,6 @@ export default function SystemSummary() {
 </div>
   )}
 
-  <div className="text-xs text-gray-400 mt-1">
-    Останнє очищення: {data.retention_last_run
-      ? new Date(data.retention_last_run).toLocaleString()
-      : "—"}
-  </div>
-
-  <div className="text-xs text-gray-400">
-    Очищено: {data.retention_deleted_last ?? 0}
-  </div>
-
-  {data.retention_next_run && (
-    <div className="text-xs text-gray-400">
-      Наступне очищення: {new Date(data.retention_next_run).toLocaleString()}
-    </div>
-  )}
 </div>
 </div>
 );

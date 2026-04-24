@@ -57,7 +57,8 @@ export default function Dashboard() {
 
   if (loading) return <div className="p-10">Завантаження...</div>;
 
-const filteredSites = sites.filter(s => {const state = s.ssl_state
+const filteredSites = sites.filter(s => {
+  const state = s.ssl_state ?? "no_data"
   if (activityFilter === "АКТИВНІ" && !s.is_active) return false
   if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
 
@@ -66,8 +67,6 @@ const filteredSites = sites.filter(s => {const state = s.ssl_state
 if (statusFilter !== "ВСІ" && statusFilter !== "DOWN") {
   if (!s.last_status || s.last_status !== statusFilter) return false
 }
-
-const isHttp = s.ssl_state === "http"
 
 if (healthFilter !== "ALL") {
   if (healthFilter === "CRITICAL" && s.health !== "critical") return false
@@ -142,7 +141,7 @@ if (sslFilter === "NO_SSL" && state !== "http") return false
             key={f.key}
             onClick={() => setHealthFilter(f.key as HealthFilter)}
             className={`px-3 py-1 rounded-md ${
-              healthFilter === f
+              healthFilter === f.key
                 ? "bg-green-600 text-white"
                 : "bg-gray-200"
             }`}

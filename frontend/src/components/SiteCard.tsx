@@ -62,18 +62,18 @@ export default function SiteCard({
   const [loading, setLoading] = useState(false);
   const [range, setRange] = useState<"24h" | "7d" | "30d">("24h");
   const [intervalEdit, setIntervalEdit] = useState(check_interval);
-  const state = s.ssl_state
-  const isHttp = s.ssl_state === "http"
-  const effectiveSSLState: SSLState | "http" = isHttp
-  ? "http"
-  : state ?? "no_data"
+
+  const effectiveSSLState =
+  ssl_state === "http"
+    ? "http"
+    : ssl_state ?? "no_data"
 
   const sslLabels: Record<SSLState, string> = {
   critical: "🔥 Критично",
   warning: "⚠️ Попередження",
   invalid: "❌ Недійсний",
   no_data: "Немає даних",
-  ok: "✅ Нормально",
+  ok: "SSL OK",
 };
 
 const sslLabel = useMemo(() => {
@@ -105,9 +105,9 @@ const chartData = useMemo(() => {
   if (!rawData.length) return []
 
   return rawData
-  .filter(c => c.bucket)
+  .filter(c => c.checked_at)
   .map(c => ({
-    time: new Date(c.bucket!).getTime(),
+  time: new Date(c.checked_at!).getTime(),
     response_time: c.avg_response_time_ms != null
   ? Number(c.avg_response_time_ms)
   : null,
@@ -200,11 +200,7 @@ archived
 </div>
 
 <div className="text-xs text-gray-500 mt-1">
-  {ssl_state === "http"
-    ? "Без SSL"
-    : ssl_state !== "ok"
-    ? `SSL: ${sslLabel}`
-    : null}
+  🔐 {sslLabel}
 </div>
       {/* HEADER */}
       <div className="flex justify-between items-start">
@@ -305,7 +301,7 @@ archived
   <div className="space-y-1 text-xs text-gray-500">
 
   <div className="text-xs text-gray-500">
-  Стан = HTTP + SSL + помилки
+  Стан формується з HTTP, SSL та помилок
 </div>
 
 <div className="flex gap-2 mt-4 text-sm">
@@ -370,15 +366,14 @@ archived
           Статус: {p.status ? (statusLabels[p.status as keyof typeof statusLabels] ?? "—") : "—"}
         </div>
 
-        {p.ssl_state !== "ok" && (
         <div>🔐 SSL: {pointLabel}</div>
-        )}
 
         <div>
         Здоров'я:
         {p.health === "critical" && " 🔴 Критично"}
         {p.health === "warning" && " 🟡 Попередження"}
         {p.health === "healthy" && " 🟢 Нормально"}
+        {p.health === "no_data" && "⚪ Немає даних"}
         </div>
 
         {p.ssl_days_left != null && (

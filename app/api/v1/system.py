@@ -79,8 +79,8 @@ async def system_status(
     last_run = meta[0] if meta else None
     deleted = meta[1] if meta else None
 
-    retention_never_run = last_run is None and deleted is None
-    retention_broken = scheduler is None or next_run is None
+    retention_never_run = last_run is None
+    retention_broken = scheduler is None
     retention_delayed = (
             next_run is not None and now > next_run + delay_threshold
     )
@@ -102,6 +102,7 @@ async def system_status(
         "ssl_warning_events": data.get("ssl_warning_events", 0),
         "ssl_invalid_events": data.get("ssl_invalid_events", 0),
         "ssl_no_data_sites": data.get("ssl_no_data_sites", 0),
+        "ssl_no_ssl_sites": data.get("ssl_no_ssl_sites", 0),
         "ssl_no_data_events": data.get("ssl_no_data_events", 0),
 
         "retention_last_run": last_run,

@@ -15,13 +15,13 @@ def compute_health(status, ssl_severity, error_rate, latency):
     if not status:
         return "no_data"
 
-    if ssl_severity == "bad":
-        return "critical"
-
     if error_rate is not None and error_rate > 10:
         return "critical"
 
     if latency is not None and latency > 1200:
+        return "critical"
+
+    if ssl_severity == "bad":
         return "critical"
 
     if ssl_severity == "warn":
@@ -165,7 +165,7 @@ async def get_site_checks(
 
     stmt = text("""
 SELECT
-  date_trunc('minute', cr.checked_at) AS bucket,
+  date_trunc('minute', cr.checked_at) AS checked_at,
   AVG(cr.response_time_ms)::float AS avg_response_time_ms,
   BOOL_OR(cr.ssl_valid) AS ssl_valid,
   MIN(cr.ssl_days_left) AS ssl_days_left,
@@ -198,8 +198,8 @@ WHERE
   AND s.user_id = :user_id
   AND cr.checked_at >= :cutoff
 
-GROUP BY bucket
-ORDER BY bucket ASC;
+GROUP BY checked_at
+ORDER BY checked_at ASC;
     """)
 
     result = await session.execute(

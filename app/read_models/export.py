@@ -26,7 +26,7 @@ async def get_checks_for_export(
 
     stmt = text("""
 SELECT
-  date_trunc('minute', cr.checked_at) AS bucket,
+  date_trunc('minute', cr.checked_at) AS checked_at,
   AVG(cr.response_time_ms)::float AS avg_response_time_ms,
 (
 ARRAY_AGG(cr.status::text ORDER BY cr.checked_at DESC)
@@ -63,8 +63,8 @@ WHERE
   AND s.user_id = :user_id
   AND cr.checked_at >= :cutoff
 
-GROUP BY bucket
-ORDER BY bucket ASC
+GROUP BY checked_at
+ORDER BY checked_at ASC;
         LIMIT 50000
     """)
 

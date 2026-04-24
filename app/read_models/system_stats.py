@@ -15,6 +15,10 @@ async def get_system_status(session: AsyncSession) -> dict:
             COUNT(DISTINCT s.id) FILTER (
               WHERE cr.ssl_warning = 'warning'
             ) AS ssl_warning_sites,
+            
+            COUNT(DISTINCT s.id) FILTER (
+            WHERE s.url LIKE 'http://%'
+            ) AS ssl_no_ssl_sites,
 
             COUNT(DISTINCT s.id) FILTER (
               WHERE cr.ssl_valid = false
@@ -22,8 +26,9 @@ async def get_system_status(session: AsyncSession) -> dict:
             ) AS ssl_invalid_sites,
 
             COUNT(DISTINCT s.id) FILTER (
-              WHERE cr.ssl_valid IS NULL
-              AND cr.ssl_warning IS NULL
+            WHERE cr.ssl_valid IS NULL
+            AND cr.ssl_warning IS NULL
+            AND s.url NOT LIKE 'http://%'
             ) AS ssl_no_data_sites,
 
             COUNT(DISTINCT s.id) FILTER (
@@ -32,7 +37,8 @@ async def get_system_status(session: AsyncSession) -> dict:
             ) AS ssl_ok_sites,
 
             COUNT(DISTINCT s.id) FILTER (
-              WHERE cr.ssl_warning IN ('critical','warning')
+              WHERE
+              cr.ssl_warning IN ('critical','warning')
               OR cr.ssl_valid = false
             ) AS problematic_sites,
         
@@ -43,11 +49,15 @@ async def get_system_status(session: AsyncSession) -> dict:
             ) AS checks_24h,
             
             (
-            SELECT COUNT(*)
-            FROM check_results
-                WHERE ssl_valid IS NULL
-            AND checked_at >= date_trunc('day', now())
-            ) AS ssl_no_data_events,
+SELECT COUNT(*)
+FROM check_results cr
+JOIN sites s ON s.id = cr.site_id
+WHERE
+  cr.ssl_valid IS NULL
+  AND cr.ssl_warning IS NULL
+  AND s.url NOT LIKE 'http://%'
+  AND cr.checked_at >= date_trunc('day', now())
+) AS ssl_no_data_events,
 
             (
                 SELECT COUNT(*)
