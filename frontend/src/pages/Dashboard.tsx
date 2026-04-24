@@ -8,7 +8,7 @@ import SystemSummary from "../components/SystemSummary";
 import { isProblem } from "../types/status";
 import type { DashboardItem, SiteStatus } from "../types/api";
 
-type HealthFilter = "ALL" | "HEALTHY" | "WARNING" | "CRITICAL"
+type HealthFilter = "ВСІ" | "HEALTHY" | "WARNING" | "CRITICAL"
 type StatusFilter = "ВСІ" | "UP" | "DOWN" | "ERROR" | "TIMEOUT";
 type ActivityFilter = "ВСІ" | "АКТИВНІ" | "АРХІВОВАНІ";
 type SSLFilter =
@@ -23,18 +23,18 @@ export default function Dashboard() {
   const [sites, setSites] = useState<DashboardItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [healthFilter, setHealthFilter] = useState<HealthFilter>("ALL")
+  const [healthFilter, setHealthFilter] = useState<HealthFilter>("ВСІ")
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ВСІ");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("ВСІ");
   const [sslFilter, setSslFilter] = useState<SSLFilter>("ALL");
 
   const sslButtons = [
-  { key: "ALL", label: "ALL" },
+  { key: "ALL", label: "ВСІ" },
   { key: "OK", label: "OK" },
   { key: "WARNING", label: "⚠" },
   { key: "CRITICAL", label: "🔥" },
   { key: "INVALID", label: "❌" },
-  { key: "NO_DATA", label: "No SSL" },
+  { key: "NO_DATA", label: "Без SSL" },
 ];
 
   const loadSites = async () => {
@@ -65,20 +65,21 @@ if (statusFilter !== "ВСІ" && statusFilter !== "DOWN" && s.last_status !== st
   return false
 
 const state = s.ssl_state
-const isHttp = s.url.startsWith("http://")
+const isHttp = s.ssl_state === "http"
 
-if (healthFilter !== "ALL") {
+if (healthFilter !== "ВСІ") {
   if (healthFilter === "CRITICAL" && s.health !== "critical") return false
   if (healthFilter === "WARNING" && s.health !== "warning") return false
   if (healthFilter === "HEALTHY" && s.health !== "healthy") return false
 }
 
 if (sslFilter === "CRITICAL" && state !== "critical") return false
-
 if (sslFilter === "WARNING" && state !== "warning") return false
 if (sslFilter === "INVALID" && state !== "invalid") return false
 if (sslFilter === "OK" && state !== "ok") return false
-if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
+
+if (sslFilter === "NO_DATA" && state !== "no_data" && state !== "http")
+  return false
 
   return true
 })
@@ -126,10 +127,15 @@ if (sslFilter === "NO_DATA" && !(isHttp || state === "no_data")) return false
 {/* Health */}
     <div>
       <div className="text-xs text-gray-400 mb-1">
-        Overall health (HTTP + SSL + errors)
+        Загальний стан (HTTP + SSL + помилки)
       </div>
       <div className="flex gap-2">
-        {["ALL", "HEALTHY", "WARNING", "CRITICAL"].map(f => (
+        {[
+  { key: "ВСІ", label: "ВСІ" },
+  { key: "HEALTHY", label: "Нормально" },
+  { key: "WARNING", label: "Попередження" },
+  { key: "CRITICAL", label: "Критично" },
+].map(f => (
           <button
             key={f}
             onClick={() => setHealthFilter(f as HealthFilter)}

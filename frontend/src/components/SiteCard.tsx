@@ -62,8 +62,8 @@ export default function SiteCard({
   const [loading, setLoading] = useState(false);
   const [range, setRange] = useState<"24h" | "7d" | "30d">("24h");
   const [intervalEdit, setIntervalEdit] = useState(check_interval);
-  const isHttp = url.startsWith("http://")
   const state = ssl_state
+  const isHttp = ssl_state === "http"
   const effectiveSSLState: SSLState | "http" = isHttp
   ? "http"
   : state ?? "no_data"
@@ -77,7 +77,7 @@ export default function SiteCard({
 };
 
 const sslLabel = useMemo(() => {
-  if (effectiveSSLState === "http") return "No SSL (HTTP)"
+  if (effectiveSSLState === "http") return "Без SSL (HTTP)"
   return sslLabels[effectiveSSLState as SSLState] ?? "—"
 }, [effectiveSSLState])
 
@@ -168,9 +168,9 @@ const handleExport = async () => {
   console.error(e)
 
   if (e?.response?.status === 500) {
-    alert("Server error during export")
+    alert("Помилка сервера під час експорту")
   } else {
-    alert("Export failed")
+    alert("Експорт не вдався")
   }
 }}
 
@@ -296,7 +296,7 @@ archived
   <div className="space-y-1 text-xs text-gray-500">
 
   <div className="text-xs text-gray-500">
-  Health = HTTP + SSL + Errors
+  Стан = HTTP + SSL + помилки
 </div>
 
 <div className="flex gap-2 mt-4 text-sm">
@@ -313,7 +313,7 @@ archived
   ))}
 </div>
 
-    <div className="mt-4 h-72">
+    <div className="mt-4 h-48">
       {loading ? (
         <div className="text-center text-gray-500 mt-20">
           Завантаження...
@@ -345,10 +345,10 @@ archived
     if (!p) return null;
     const sev = p.ssl_severity ?? null;
     const pointState = p.ssl_state ?? "no_data"
-    const isHttpPoint = pointState === "no_data" && url.startsWith("http://")
+    const isHttpPoint = pointState === "http"
 
     const pointLabel = isHttpPoint
-    ? "No SSL (HTTP)"
+    ? "Без SSL (HTTP)"
     : sslLabels[pointState as SSLState] ?? "—"
 
     return (
@@ -366,24 +366,17 @@ archived
         </div>
 
         <div>
-        {!isHttpPoint && sev === null && "No SSL data"}
-        {sev === "bad" && "🔥 Problem"}
-        {sev === "warn" && "⚠ Warning"}
-        {sev === "good" && "✅ OK"}
-        </div>
-
-        <div>
         Health:
-        {p.health === "critical" && " 🔴 Critical"}
-        {p.health === "warning" && " 🟡 Warning"}
-        {p.health === "healthy" && " 🟢 Healthy"}
+        {p.health === "critical" && " 🔴 Критично"}
+        {p.health === "warning" && " 🟡 Попередження"}
+        {p.health === "healthy" && " 🟢 Нормально"}
         </div>
 
         {p.ssl_days_left != null && (
           <div>
             {p.ssl_days_left <= 0
-              ? "Expired"
-              : `Expires in: ${p.ssl_days_left} days`}
+              ? "Термін дії закінчився"
+              : `Закінчується через: ${p.ssl_days_left} днів`}
           </div>
         )}
     </div>

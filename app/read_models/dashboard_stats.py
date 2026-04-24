@@ -21,13 +21,16 @@ def compute_health(status, ssl_severity, error_rate, latency):
     if error_rate is not None and error_rate > 10:
         return "critical"
 
+    if latency is not None and latency > 1200:
+        return "critical"
+
     if ssl_severity == "warn":
         return "warning"
 
     if error_rate is not None and error_rate > 2:
         return "warning"
 
-    if latency is not None and latency > 800:
+    if latency is not None and latency > 600:
         return "warning"
 
     return "healthy"
@@ -42,7 +45,7 @@ SELECT
     s.id AS site_id,
     s.name,
     s.url,
-    s.last_status,
+    s.last_status::text AS last_status,
     s.check_interval,
     s.is_active,
 
@@ -53,6 +56,7 @@ SELECT
     cr.ssl_expires_at,
 
     CASE
+      WHEN s.url LIKE 'http://%' THEN 'http'
       WHEN cr.ssl_warning = 'critical' THEN 'critical'
       WHEN cr.ssl_warning = 'warning' THEN 'warning'
       WHEN cr.ssl_valid = false THEN 'invalid'
@@ -127,7 +131,7 @@ ORDER BY s.created_at DESC;
     """)
 
     result = await session.execute(stmt, {"user_id": user_id})
-    rows = [dict(row) for row in result.mappings().all()]
+    rows = [dict(r) for r in result.mappings().all()]
 
     for r in rows:
         latency = r.get("p95_latency")

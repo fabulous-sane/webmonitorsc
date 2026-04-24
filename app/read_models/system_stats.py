@@ -8,33 +8,39 @@ async def get_system_status(session: AsyncSession) -> dict:
             COUNT(*) FILTER (WHERE s.is_active = true) AS active_sites,
             COUNT(*) FILTER (WHERE s.is_active = false) AS archived_sites,
 
-            COUNT(DISTINCT s.id) FILTER (
-            WHERE cr.ssl_warning = 'critical'
+             COUNT(DISTINCT s.id) FILTER (
+              WHERE cr.ssl_warning = 'critical'
             ) AS ssl_critical_sites,
 
             COUNT(DISTINCT s.id) FILTER (
-            WHERE cr.ssl_warning = 'warning'
+              WHERE cr.ssl_warning = 'warning'
             ) AS ssl_warning_sites,
 
             COUNT(DISTINCT s.id) FILTER (
-            WHERE cr.ssl_valid = false
-            AND cr.ssl_warning IS NULL
+              WHERE cr.ssl_valid = false
+              AND cr.ssl_warning IS NULL
             ) AS ssl_invalid_sites,
 
             COUNT(DISTINCT s.id) FILTER (
-            WHERE cr.ssl_valid IS NULL
-            AND cr.ssl_warning IS NULL
+              WHERE cr.ssl_valid IS NULL
+              AND cr.ssl_warning IS NULL
             ) AS ssl_no_data_sites,
-            
+
             COUNT(DISTINCT s.id) FILTER (
-            WHERE cr.ssl_valid = true
-            AND cr.ssl_warning IS NULL
+              WHERE cr.ssl_valid = true
+              AND cr.ssl_warning IS NULL
             ) AS ssl_ok_sites,
-            
+
             COUNT(DISTINCT s.id) FILTER (
-            WHERE cr.ssl_warning = 'critical'
-            OR cr.ssl_valid = false
+              WHERE cr.ssl_warning = 'critical'
+              OR cr.ssl_valid = false
             ) AS problematic_sites,
+        
+            (
+                SELECT COUNT(*)
+                FROM check_results
+                WHERE checked_at >= date_trunc('day', now())
+            ) AS checks_24h,
             
             (
             SELECT COUNT(*)
@@ -42,12 +48,6 @@ async def get_system_status(session: AsyncSession) -> dict:
                 WHERE ssl_valid IS NULL
             AND checked_at >= date_trunc('day', now())
             ) AS ssl_no_data_events,
-
-            (
-                SELECT COUNT(*)
-                FROM check_results
-                WHERE checked_at >= date_trunc('day', now())
-            ) AS checks_24h,
 
             (
                 SELECT COUNT(*)

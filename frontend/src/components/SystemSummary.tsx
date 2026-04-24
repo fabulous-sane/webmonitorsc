@@ -12,20 +12,23 @@ interface SystemStatus {
   ssl_no_data_sites: number;
   ssl_ok_sites: number;
 
-  problematic_sites: number
+  problematic_sites: number;
 
   ssl_invalid_events: number;
   ssl_critical_events: number;
   ssl_warning_events: number;
   ssl_no_data_events: number;
 
-  retention_next_run: string | null
-  retention_last_run: string | null
-  retention_deleted_last: number | null
+  data_retention_days: number;
+  data_cutoff_date: string;
 
-  retention_never_run: boolean
-  retention_broken: boolean
-  retention_delayed: boolean
+  retention_next_run: string | null;
+  retention_last_run: string | null;
+  retention_deleted_last: number | null;
+
+  retention_never_run: boolean;
+  retention_broken: boolean;
+  retention_delayed: boolean;
 }
 
 export default function SystemSummary() {
@@ -63,6 +66,13 @@ export default function SystemSummary() {
         <div className="text-xs text-gray-400">
     з моменту 00:00 UTC
   </div>
+  <div className="text-xs text-gray-400">
+  Зберігаємо: {data.data_retention_days} днів
+</div>
+
+<div className="text-xs text-gray-400">
+  Видаляються записи до: {new Date(data.data_cutoff_date).toLocaleString()}
+</div>
       </div>
 
       {/* SSL SITES */}
@@ -143,31 +153,31 @@ export default function SystemSummary() {
       </div>
       {/* RETENTION */}
       <div className="p-4 rounded-lg border">
-  <div className="text-sm text-gray-500">Retention</div>
+  <div className="text-sm text-gray-500">Очищення</div>
 
   {data.retention_broken ? (
-    <div className="text-red-600 font-semibold">❌ Scheduler down</div>
+    <div className="text-red-600 font-semibold">❌ Планувальник не працює</div>
   ) : data.retention_never_run ? (
-    <div className="text-yellow-600">⏳ Never run</div>
+    <div className="text-yellow-600">⏳ Не запускалася</div>
   ) : data.retention_delayed ? (
-    <div className="text-orange-600">⚠ Delayed</div>
+    <div className="text-orange-600">⚠ Затримується</div>
   ) : (
     <div className="text-green-600">✅ OK</div>
   )}
 
   <div className="text-xs text-gray-400 mt-1">
-    Last run: {data.retention_last_run
+    Останнє очищення: {data.retention_last_run
       ? new Date(data.retention_last_run).toLocaleString()
       : "—"}
   </div>
 
   <div className="text-xs text-gray-400">
-    Deleted: {data.retention_deleted_last ?? "—"}
+    Очищено: {data.retention_deleted_last ?? "—"}
   </div>
 
   {data.retention_next_run && (
     <div className="text-xs text-gray-400">
-      Next: {new Date(data.retention_next_run).toLocaleString()}
+      Наступне очищення: {new Date(data.retention_next_run).toLocaleString()}
     </div>
   )}
 </div>

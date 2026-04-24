@@ -24,7 +24,7 @@ if (!status) {
 }
 
 const cls = map[status] ?? "bg-gray-100 text-gray-500"
-const text = label[status] ?? "Unknown"
+const text = label[status] ?? "Невідомо"
 
 return (
   <span className={`px-3 py-1 text-xs font-medium rounded-full ${cls}`}>
