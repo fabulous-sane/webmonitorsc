@@ -27,7 +27,7 @@ async def get_checks_for_export(
     stmt = text("""
 SELECT
   date_trunc('minute', cr.checked_at) AS bucket,
-  AVG(cr.response_time_ms) AS avg_response_time_ms,
+  AVG(cr.response_time_ms)::float AS avg_response_time_ms,
 (
 ARRAY_AGG(cr.status::text ORDER BY cr.checked_at DESC)
 )[1] AS status,

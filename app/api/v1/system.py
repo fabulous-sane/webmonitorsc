@@ -19,10 +19,42 @@ async def system_status(
     data = await get_system_status(session)
     now = datetime.now(timezone.utc)
 
+    cutoff = now - timedelta(days=settings.RETENTION_DAYS)
+    delay_threshold = timedelta(hours=settings.RETENTION_DELAY_THRESHOLD_HOURS)
+
     scheduler = getattr(request.app.state, "scheduler", None)
 
     if scheduler is None:
-        raise RuntimeError("Scheduler not initialized")
+        logger.error("Scheduler missing")
+        return {
+            "active_sites": 0,
+            "archived_sites": 0,
+            "checks_24h": 0,
+
+            "ssl_critical_sites": 0,
+            "ssl_warning_sites": 0,
+            "ssl_invalid_sites": 0,
+            "ssl_ok_sites": 0,
+            "ssl_no_data_sites": 0,
+
+            "problematic_sites": 0,
+
+            "ssl_critical_events": 0,
+            "ssl_warning_events": 0,
+            "ssl_invalid_events": 0,
+            "ssl_no_data_events": 0,
+
+            "retention_last_run": None,
+            "retention_next_run": None,
+            "data_retention_days": settings.RETENTION_DAYS,
+            "cleanup_interval": "daily",
+
+            "retention_never_run": True,
+            "retention_broken": True,
+            "retention_delayed": False,
+            "data_cutoff_date": cutoff,
+            "retention_deleted_last": None,
+        }
 
     job = scheduler.get_job("retention_cleanup")
     if not job:
@@ -47,12 +79,8 @@ async def system_status(
     last_run = meta[0] if meta else None
     deleted = meta[1] if meta else None
 
-    cutoff = now - timedelta(days=settings.RETENTION_DAYS)
-
-    delay_threshold = timedelta(hours=settings.RETENTION_DELAY_THRESHOLD_HOURS)
-
     retention_never_run = last_run is None and deleted is None
-    retention_broken = next_run is None
+    retention_broken = scheduler is None or next_run is None
     retention_delayed = (
             next_run is not None and now > next_run + delay_threshold
     )

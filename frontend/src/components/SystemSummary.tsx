@@ -71,7 +71,10 @@ export default function SystemSummary() {
 </div>
 
 <div className="text-xs text-gray-400">
-  Видаляються записи до: {new Date(data.data_cutoff_date).toLocaleString()}
+  Будуть видалені записи старші за: {new Date(data.data_cutoff_date).toLocaleString()}
+</div>
+<div className="text-xs text-gray-400">
+  Наступне очищення: {new Date(data.retention_next_run).toLocaleString()}
 </div>
       </div>
 
@@ -162,7 +165,9 @@ export default function SystemSummary() {
   ) : data.retention_delayed ? (
     <div className="text-orange-600">⚠ Затримується</div>
   ) : (
-    <div className="text-green-600">✅ OK</div>
+    <div className="text-green-600">
+  ✅ Працює нормально
+</div>
   )}
 
   <div className="text-xs text-gray-400 mt-1">
@@ -172,7 +177,7 @@ export default function SystemSummary() {
   </div>
 
   <div className="text-xs text-gray-400">
-    Очищено: {data.retention_deleted_last ?? "—"}
+    Очищено: {data.retention_deleted_last ?? 0}
   </div>
 
   {data.retention_next_run && (

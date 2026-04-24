@@ -46,13 +46,13 @@ async def export_site_checks(
 
     for r in rows:
         status = r["status"]
-        status_value = str(status) if status is not None else ""
+        status_value = status if status else ""
         timestamp = r["bucket"]
         writer.writerow([
             timestamp.isoformat() if timestamp else "",
             status_value,
-            r["status_code"] or "",
-            r["avg_response_time_ms"] or ""
+            r["status_code"] if r["status_code"] is not None else "",
+            float(r["avg_response_time_ms"]) if r["avg_response_time_ms"] is not None else ""
         ])
 
     buffer.seek(0)

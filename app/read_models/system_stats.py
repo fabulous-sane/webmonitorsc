@@ -32,7 +32,7 @@ async def get_system_status(session: AsyncSession) -> dict:
             ) AS ssl_ok_sites,
 
             COUNT(DISTINCT s.id) FILTER (
-              WHERE cr.ssl_warning = 'critical'
+              WHERE cr.ssl_warning IN ('critical','warning')
               OR cr.ssl_valid = false
             ) AS problematic_sites,
         

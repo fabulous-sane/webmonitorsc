@@ -34,7 +34,8 @@ export default function Dashboard() {
   { key: "WARNING", label: "⚠" },
   { key: "CRITICAL", label: "🔥" },
   { key: "INVALID", label: "❌" },
-  { key: "NO_DATA", label: "Без SSL" },
+  { key: "NO_DATA", label: "Немає даних" },
+  { key: "NO_SSL", label: "Без SSL" },
 ];
 
   const loadSites = async () => {
@@ -78,8 +79,8 @@ if (sslFilter === "WARNING" && state !== "warning") return false
 if (sslFilter === "INVALID" && state !== "invalid") return false
 if (sslFilter === "OK" && state !== "ok") return false
 
-if (sslFilter === "NO_DATA" && state !== "no_data" && state !== "http")
-  return false
+if (sslFilter === "NO_DATA" && state !== "no_data") return false
+if (sslFilter === "NO_SSL" && state !== "http") return false
 
   return true
 })
@@ -214,7 +215,7 @@ if (sslFilter === "NO_DATA" && state !== "no_data" && state !== "http")
       )}
     </div>
 
-          <div className="w-80">
+          <div className="w-80 shrink-0">
             <TelegramConnect />
           </div>
 

@@ -10,10 +10,10 @@ def compute_health(status, ssl_severity, error_rate, latency):
         return "critical"
 
     if status in ("ERROR", "TIMEOUT"):
-        return "warning"
+        return "critical"
 
     if not status:
-        return "warning"
+        return "no_data"
 
     if ssl_severity == "bad":
         return "critical"
@@ -166,7 +166,7 @@ async def get_site_checks(
     stmt = text("""
 SELECT
   date_trunc('minute', cr.checked_at) AS bucket,
-  AVG(cr.response_time_ms) AS avg_response_time_ms,
+  AVG(cr.response_time_ms)::float AS avg_response_time_ms,
   BOOL_OR(cr.ssl_valid) AS ssl_valid,
   MIN(cr.ssl_days_left) AS ssl_days_left,
   MAX(cr.ssl_warning) AS ssl_warning,

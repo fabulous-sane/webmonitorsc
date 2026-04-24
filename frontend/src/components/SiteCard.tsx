@@ -31,7 +31,7 @@ interface Props {
   ssl_severity?: SSLSeverity;
   p95_latency?: number
   error_rate?: number
-  health?: "healthy" | "warning" | "critical"
+  health?: "healthy" | "warning" | "critical" | "no_data"
   onDeleted?: () => void;
   onReactivated?: () => void;
 }
@@ -62,8 +62,8 @@ export default function SiteCard({
   const [loading, setLoading] = useState(false);
   const [range, setRange] = useState<"24h" | "7d" | "30d">("24h");
   const [intervalEdit, setIntervalEdit] = useState(check_interval);
-  const state = ssl_state
-  const isHttp = ssl_state === "http"
+  const state = s.ssl_state
+  const isHttp = s.ssl_state === "http"
   const effectiveSSLState: SSLState | "http" = isHttp
   ? "http"
   : state ?? "no_data"
@@ -108,7 +108,9 @@ const chartData = useMemo(() => {
   .filter(c => c.bucket)
   .map(c => ({
     time: new Date(c.bucket!).getTime(),
-    response_time: c.avg_response_time_ms ?? null,
+    response_time: c.avg_response_time_ms != null
+  ? Number(c.avg_response_time_ms)
+  : null,
     status: c.status,
     ssl_state: c.ssl_state,
     ssl_days_left: c.ssl_days_left,
@@ -187,15 +189,25 @@ archived
 }`}
 >
   <div className="flex items-center gap-2">
-
   <StatusBadge status={last_status} />
 
 <span className="text-xs font-semibold">
-  {health === "critical" && "🔴 CRITICAL"}
-  {health === "warning" && "🟡 WARNING"}
-  {health === "healthy" && "🟢 HEALTHY"}
+  {health === "critical" && "🔴 Критично"}
+  {health === "warning" && "🟡 Попередження"}
+  {health === "healthy" && "🟢 Нормально"}
+  {health === "no_data" && "⚪ Немає даних"}
 </span>
 </div>
+
+<div className="text-xs text-gray-500 mt-1">
+  {ssl_state === "http"
+    ? "Без SSL"
+    : ssl_state !== "ok"
+    ? `SSL: ${sslLabel}`
+    : null}
+</div>
+
+
 
       {/* HEADER */}
       <div className="flex justify-between items-start">
@@ -252,7 +264,7 @@ archived
               onClick={handleArchive}
               className="px-3 py-1 bg-red-50 text-red-600 rounded-md hover:bg-red-100"
             >
-              Архів
+              Архівувати
             </button>
           )}
         </div>
@@ -335,7 +347,7 @@ archived
             : d.toLocaleDateString([], { day: '2-digit', month: '2-digit' })
             }}
             />
-            <YAxis domain={[0, 'dataMax + 100']} />
+           <YAxis domain={[0, (dataMax: number) => dataMax * 1.2]} />
 
             <Tooltip
   content={({ active, payload }) => {
@@ -358,15 +370,15 @@ archived
         <div>⏱ {p.response_time ?? "—"} ms</div>
 
         <div>
-          Status: {p.status ? (statusLabels[p.status as SiteStatus] ?? "—") : "—"}
+          Статус: {p.status ? (statusLabels[p.status as keyof typeof statusLabels] ?? "—") : "—"}
         </div>
 
-        <div>
-          🔐 SSL: {pointLabel}
-        </div>
+        {p.ssl_state !== "ok" && (
+        <div>🔐 SSL: {pointLabel}</div>
+        )}
 
         <div>
-        Health:
+        Здоров'я:
         {p.health === "critical" && " 🔴 Критично"}
         {p.health === "warning" && " 🟡 Попередження"}
         {p.health === "healthy" && " 🟢 Нормально"}
