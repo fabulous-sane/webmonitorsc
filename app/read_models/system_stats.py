@@ -89,8 +89,7 @@ WHERE
             ORDER BY checked_at DESC
             LIMIT 1
         ) cr ON true
-        
-        WHERE s.is_active = true
+        COUNT(*) FILTER (WHERE s.is_active = false)
     """)
 
     result = await session.execute(stmt)

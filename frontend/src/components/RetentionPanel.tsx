@@ -3,6 +3,13 @@ import type { SystemStatus } from "../components/SystemSummary"
 export default function RetentionPanel({ data }: { data: SystemStatus }) {
   const [open, setOpen] = useState(false)
 
+const formatKyiv = (d?: string | null) =>
+  d
+    ? new Date(d).toLocaleString("uk-UA", {
+        timeZone: "Europe/Kyiv",
+      })
+    : "—"
+
   return (
     <div className="bg-white rounded-xl shadow-sm border">
 
@@ -20,52 +27,45 @@ export default function RetentionPanel({ data }: { data: SystemStatus }) {
 </button>
 
       {open && (
-  <div className="space-y-2 text-xs text-gray-500">
+  <div className="p-4 space-y-3 text-sm text-gray-600">
 
-    <div className="p-4 border-b">
-      {data.retention_broken
-        ? "❌ Зламано"
-        : data.retention_never_run
-        ? "⏳ Не запускалась"
-        : data.retention_delayed
-        ? "⚠ Затримка"
-        : "✅ Працює нормально"}
-    </div>
+  <div className="font-medium">
+    {data.retention_broken
+      ? "❌ Планувальник не працює"
+      : data.retention_never_run
+      ? "⏳ Ще не запускалось"
+      : data.retention_delayed
+      ? "⚠ Є затримка"
+      : "✅ Працює стабільно"}
+  </div>
 
+    <div className="space-y-1 text-xs text-gray-500">
     <div>
-      Зберігаємо історію за останні: {data.data_retention_days} днів
+      Зберігаємо дані за останні <b>{data.data_retention_days} днів</b>
     </div>
 
-          <div>
-      Дані старші за цю дату будуть видалені:
+     <div>
+      Видаляються записи старші ніж:
       <br />
-      {data.data_cutoff_date
-        ? new Date(data.data_cutoff_date).toLocaleString("uk-UA", {
-            timeZone: "Europe/Kyiv",
-          })
-        : "—"}
-    </div>
-
-          <div>
-      Останнє очищення:
-      {data.retention_last_run
-        ? new Date(data.retention_last_run).toLocaleString("uk-UA", {
-            timeZone: "Europe/Kyiv",
-          })
-        : " —"}
-    </div>
-
-          <div>
-      Видалено записів: {data.retention_deleted_last ?? 0}
+      <b>
+        {formatKyiv(data.data_cutoff_date)}
+      </b>
     </div>
 
     <div>
-      Наступне очищення:
-      {data.retention_next_run
-        ? new Date(data.retention_next_run).toLocaleString("uk-UA", {
-            timeZone: "Europe/Kyiv",
-          })
-        : " —"}
+      Останнє очищення:
+      <b> {formatKyiv(data.retention_last_run)}</b>
+    </div>
+
+    <div>
+      Видалено записів:
+      <b> {data.retention_deleted_last ?? 0}</b>
+    </div>
+
+    <div>
+      Наступний запуск:
+      <b> {formatKyiv(data.retention_next_run)}</b>
+    </div>
     </div>
   </div>
 )}
