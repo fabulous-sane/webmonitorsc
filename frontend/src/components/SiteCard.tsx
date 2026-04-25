@@ -446,7 +446,7 @@ function SLA({ label, value }: { label: string; value: number }) {
   if (!Number.isFinite(value)) {
   return (
     <div>
-      <div className="text-gray-500">SLA ({label})</div>
+      <div className="text-gray-500">uptime ({label})</div>
       <div className="text-gray-400">—</div>
     </div>
   )
@@ -457,7 +457,7 @@ function SLA({ label, value }: { label: string; value: number }) {
 
   return (
     <div>
-      <div className="text-gray-500">SLA ({label})</div>
+      <div className="text-gray-500">uptime ({label})</div>
       <div className={`font-semibold ${color}`}>
         {Number.isFinite(value) ? value.toFixed(2) : "—"}%
       </div>
