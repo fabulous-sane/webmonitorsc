@@ -202,7 +202,11 @@ archived
 </div>
 
 <div className="text-xs text-gray-500 mt-1">
-  🔐 SSL: {sslLabel}
+  {isHttp ? (
+    <span className="text-orange-600">🌐 HTTP (без SSL)</span>
+  ) : (
+    <>🔐 SSL: {sslLabel}</>
+  )}
 </div>
       {/* HEADER */}
       <div className="flex justify-between items-start">
@@ -345,7 +349,7 @@ archived
     if (!p) return null;
 
 const pointState = p.ssl_state ?? "no_data"
-
+const isHttp = sslState === "http"
 const pointMeta = sslMeta[pointState] ?? {
   label: "Невідомо",
   severity: "warn"
@@ -378,25 +382,21 @@ const healthKey = p.health ?? "no_data"
           Статус: {p.status ? (statusLabels[p.status as keyof typeof statusLabels] ?? "—") : "—"}
         </div>
 
-        <div className="font-medium">
-        {pointMeta.label}
-        </div>
-
-        {pointState === "http" && (
-  <div className="text-xs text-orange-600">
-    Причина: HTTP без SSL
+        {!isHttp && (
+  <div className="font-medium">
+    {pointMeta.label}
   </div>
 )}
 
         <div>Здоров'я: {healthLabels[healthKey] ?? "—"}</div>
 
-        {p.ssl_days_left != null && (
-          <div>
-            {p.ssl_days_left <= 0
-              ? "Термін дії SSL-сертифікату закінчився"
-              : `Термін дії SSL-сертифікату закінчується через: ${p.ssl_days_left} днів`}
-          </div>
-        )}
+       {!isHttp && p.ssl_days_left != null && (
+  <div>
+    {p.ssl_days_left <= 0
+      ? "Термін дії SSL-сертифікату закінчився"
+      : `Термін дії SSL-сертифікату закінчується через: ${p.ssl_days_left} днів`}
+  </div>
+)}
     </div>
     );
   }}
