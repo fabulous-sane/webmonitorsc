@@ -441,7 +441,7 @@ return (
   );
 }
 
-function SLA({ label, value }: { label: string; value: number }) {
+function uptime({ label, value }: { label: string; value: number }) {
   let color = "text-gray-700";
   if (!Number.isFinite(value)) {
   return (
