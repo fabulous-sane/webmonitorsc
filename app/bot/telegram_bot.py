@@ -71,7 +71,7 @@ async def safe_send(chat_id: int, text: str, reply_markup=None):
         logger.warning("Bot not initialized (chat_id=%s)", chat_id)
         return
     try:
-        await bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup)
+        await bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup or main_menu(),)
     except TelegramForbiddenError:
         logger.warning(f"Bot blocked by user {chat_id}")
     except Exception:
@@ -112,7 +112,7 @@ async def help_button(message: types.Message):
         "Або використовуйте для підключення:\n"
         "<code>/connect CODE</code>"
     )
-    await safe_send(message.chat.id, text)
+    await safe_send(message.chat.id, text, main_menu())
 
 
 @dp.message(Command("connect"))
@@ -259,17 +259,23 @@ async def site_details(callback: CallbackQuery):
 
             if is_http:
                 text += "\n\n🌐 <b>SSL:</b> відсутній (HTTP)"
-            elif ssl_info is not None:
-                if ssl_info.get("ssl_warning") == "critical":
-                    text += f"\n\n🔴 <b>SSL:</b> закінчується ({ssl_info['ssl_days_left']} днів)"
-                elif ssl_info.get("ssl_warning") == "warning":
-                    text += f"\n\n🟡 <b>SSL:</b> скоро закінчиться ({ssl_info['ssl_days_left']} днів)"
-                elif ssl_info.get("ssl_valid") is False:
+            elif not ssl_info:
+                text += "\n\n⚪ <b>SSL:</b> немає даних"
+            else:
+                warning = ssl_info.get("ssl_warning")
+                valid = ssl_info.get("ssl_valid")
+                days = ssl_info.get("ssl_days_left")
+
+                if warning == "critical":
+                    text += f"\n\n🔴 <b>SSL:</b> закінчується ({days} днів)"
+                elif warning == "warning":
+                    text += f"\n\n🟡 <b>SSL:</b> скоро закінчиться ({days} днів)"
+                elif valid is False:
                     text += "\n\n❌ <b>SSL:</b> недійсний"
-                elif ssl_info.get("ssl_valid") is None:
-                    text += "\n\n⚪ <b>SSL:</b> немає даних"
-                else:
+                elif valid is True:
                     text += "\n\n🟢 <b>SSL:</b> OK"
+                else:
+                    text += "\n\n⚪ <b>SSL:</b> немає даних"
 
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[
