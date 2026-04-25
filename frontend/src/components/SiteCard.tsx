@@ -82,6 +82,7 @@ const formatDate = (d: string | null) => {
 
 const sslState = ssl_state ?? "no_data"
 const sslLabel = sslLabels[sslState]
+const isHttp = sslState === "http"
 
   useEffect(() => {
     if (!expanded) return;
