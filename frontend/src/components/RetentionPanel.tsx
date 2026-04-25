@@ -39,12 +39,14 @@ const formatKyiv = (d?: string | null) =>
       : "✅ Працює стабільно"}
   </div>
 
-    <div className="space-y-1 text-xs text-gray-500">
-    <div>
-    Зберігаються дані приблизно за останні <b>{data.data_retention_days} днів</b>;
+    <div className="space-y-2 text-xs">
+  <div>
+    <span className="text-gray-500">Період зберігання:</span>{" "}
+    <b>{data.data_retention_days} днів</b>
   </div>
+
   <div className="text-gray-400">
-    Старі записи видаляються під час планового очищення.
+    Дані старші за цей період автоматично видаляються під час очищення
   </div>
 </div>
 

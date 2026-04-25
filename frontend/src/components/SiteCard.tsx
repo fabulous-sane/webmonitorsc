@@ -263,9 +263,9 @@ archived
         </div>
       </div>
 <div className="grid grid-cols-3 gap-6 text-sm mt-4">
-  <SLA label="24г" value={uptime_24h} />
-  <SLA label="7д" value={uptime_7d} />
-  <SLA label="30д" value={uptime_30d} />
+  <uptime label="24г" value={uptime_24h} />
+  <uptime label="7д" value={uptime_7d} />
+  <uptime label="30д" value={uptime_30d} />
 </div>
 
 <div className="grid grid-cols-2 gap-6 text-sm mt-4">
