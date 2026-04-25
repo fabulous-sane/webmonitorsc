@@ -9,7 +9,7 @@ import RetentionPanel from "../components/RetentionPanel";
 import { isProblem } from "../types/status";
 import type { DashboardItem, SiteStatus } from "../types/api";
 import type { SystemStatus } from "../components/SystemSummary";
-import { normalizeSSL, sslMeta } from "../utils/ssl"
+import type { SSLState } from "../utils/ssl"
 
 type HealthFilter = "ALL" | "HEALTHY" | "WARNING" | "CRITICAL";
 type StatusFilter = "ВСІ" | "UP" | "DOWN" | "ERROR" | "TIMEOUT";
@@ -42,6 +42,16 @@ export default function Dashboard() {
   { key: "NO_SSL", label: "Без SSL" },
 ];
 
+const sslFilterMap: Record<SSLFilter, SSLState | null> = {
+  ALL: null,
+  OK: "ok",
+  WARNING: "warning",
+  CRITICAL: "critical",
+  INVALID: "invalid",
+  NO_DATA: "no_data",
+  NO_SSL: "http",
+}
+
   const loadSites = async () => {
     try {
       const res = await api.get("/dashboard/overview");
@@ -60,27 +70,37 @@ export default function Dashboard() {
 
 const [systemData, setSystemData] = useState<SystemStatus | null>(null)
     useEffect(() => {
-  api.get("/system/status")
-    .then(res => setSystemData(res.data))
+  const load = () => {
+    api.get("/system/status")
+      .then(res => setSystemData(res.data))
+      .catch(() => setSystemData(null))
+  }
+
+  load()
+  const interval = setInterval(load, 60000)
+
+  return () => clearInterval(interval)
 }, [])
 
 if (loading) return <div className="p-10">Завантаження...</div>;
 
 const filteredSites = sites.filter(s => {
-  const state = normalizeSSL(s.ssl_state)
-
+  const state: SSLState = s.ssl_state ?? "no_data"
+  const mapped = sslFilterMap[sslFilter]
   // activity
   if (activityFilter === "АКТИВНІ" && !s.is_active) return false
   if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
 
   // http status
   if (statusFilter === "DOWN" && !isProblem(s.last_status)) return false
-  if (
-    statusFilter !== "ВСІ" &&
-    statusFilter !== "DOWN" &&
-    s.last_status !== statusFilter
-  )
-    return false
+
+if (
+  statusFilter !== "ВСІ" &&
+  statusFilter !== "DOWN" &&
+  (s.last_status ?? "") !== statusFilter
+) {
+  return false
+}
 
   // health
   if (healthFilter === "CRITICAL" && s.health !== "critical") return false
@@ -88,12 +108,7 @@ const filteredSites = sites.filter(s => {
   if (healthFilter === "HEALTHY" && s.health !== "healthy") return false
 
   // ssl
-  if (sslFilter === "CRITICAL" && state !== "critical") return false
-  if (sslFilter === "WARNING" && state !== "warning") return false
-  if (sslFilter === "INVALID" && state !== "invalid") return false
-  if (sslFilter === "OK" && state !== "ok") return false
-  if (sslFilter === "NO_DATA" && state !== "no_data") return false
-  if (sslFilter === "NO_SSL" && state !== "http") return false
+  if (mapped && state !== mapped) return false
 
   return true
 })
@@ -117,7 +132,9 @@ const filteredSites = sites.filter(s => {
     <div className="space-y-6">
 
 <SystemSummary data={systemData} />
-{systemData && <RetentionPanel data={systemData} />}
+<div className="opacity-90">
+  {systemData && <RetentionPanel data={systemData} />}
+</div>
 
   {/* FILTERS */}
   <div className="space-y-4">

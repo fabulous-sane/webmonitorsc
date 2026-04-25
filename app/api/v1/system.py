@@ -20,6 +20,7 @@ async def system_status(
     now = datetime.now(timezone.utc)
 
     cutoff = now - timedelta(days=settings.RETENTION_DAYS)
+    cutoff = cutoff.astimezone(timezone.utc)
     delay_threshold = timedelta(hours=settings.RETENTION_DELAY_THRESHOLD_HOURS)
 
     scheduler = getattr(request.app.state, "scheduler", None)
@@ -36,6 +37,7 @@ async def system_status(
             "ssl_invalid_sites": 0,
             "ssl_ok_sites": 0,
             "ssl_no_data_sites": 0,
+            "ssl_no_ssl_sites": 0,
 
             "problematic_sites": 0,
 
@@ -52,7 +54,7 @@ async def system_status(
             "retention_never_run": True,
             "retention_broken": True,
             "retention_delayed": False,
-            "data_cutoff_date": cutoff,
+            "data_cutoff_date": cutoff.isoformat(),
             "retention_deleted_last": None,
         }
 
@@ -80,7 +82,7 @@ async def system_status(
     deleted = meta[1] if meta else None
 
     retention_never_run = last_run is None
-    retention_broken = scheduler is None
+    retention_broken = scheduler is None or job is None
     retention_delayed = (
             next_run is not None and now > next_run + delay_threshold
     )
@@ -106,12 +108,12 @@ async def system_status(
         "ssl_no_data_events": data.get("ssl_no_data_events", 0),
 
         "retention_last_run": last_run,
-        "retention_next_run": next_run,
+        "retention_next_run": next_run.isoformat() if next_run else None,
         "data_retention_days": settings.RETENTION_DAYS,
         "cleanup_interval": "daily",
         "retention_never_run": retention_never_run,
         "retention_broken": retention_broken,
         "retention_delayed": retention_delayed,
-        "data_cutoff_date": cutoff,
+        "data_cutoff_date": cutoff.isoformat(),
         "retention_deleted_last": deleted,
     }

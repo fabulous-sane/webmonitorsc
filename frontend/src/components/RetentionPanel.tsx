@@ -21,7 +21,7 @@ const formatKyiv = (d?: string | null) =>
     Система зберігання даних
   </span>
 
-  <span className="text-xs text-gray-400">
+  <span className="text-xs text-blue-600 font-medium">
     {open ? "Згорнути" : "Розгорнути"}
   </span>
 </button>
@@ -41,7 +41,8 @@ const formatKyiv = (d?: string | null) =>
 
     <div className="space-y-1 text-xs text-gray-500">
     <div>
-      Зберігаємо дані за останні <b>{data.data_retention_days} днів</b>
+      Зберігаються дані приблизно за останні <b>{data.data_retention_days} днів</b>
+      Старі записи видаляються під час планового очищення.
     </div>
 
      <div>

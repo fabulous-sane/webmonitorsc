@@ -1,4 +1,4 @@
-import { normalizeSSL, sslMeta } from "../utils/ssl"
+import { sslMeta, sslLabels } from "../utils/ssl"
 import type { SiteStatus, SSLState, SSLSeverity } from "../types/api";
 import { useState, useEffect, useMemo } from "react";
 import api from "../api/axios";
@@ -70,19 +70,18 @@ export default function SiteCard({
   ERROR: "Помилка",
 }
 
-const formatDate = (d: string | null) =>
-  d
-    ? new Date(d).toLocaleString("uk-UA", {
-        timeZone: "Europe/Kyiv",
-      })
-    : "—"
+const formatDate = (d: string | null) => {
+  if (!d) return "—"
+  const date = new Date(d)
+  if (isNaN(date.getTime())) return "—"
 
-const state = normalizeSSL(ssl_state)
+  return date.toLocaleString("uk-UA", {
+    timeZone: "Europe/Kyiv",
+  })
+}
 
-const sslLabel =
-  state === "http"
-    ? "Без SSL (HTTP)"
-    : sslMeta[state as keyof typeof sslMeta]?.label ?? "—"
+const sslState = ssl_state ?? "no_data"
+const sslLabel = sslLabels[sslState]
 
   useEffect(() => {
     if (!expanded) return;
@@ -102,35 +101,43 @@ const chartData = useMemo(() => {
   if (!rawData.length) return []
 
   return rawData
-  .filter(c => c.checked_at)
-  .map(c => ({
-    time: new Date(c.checked_at!).getTime(),
-    response_time: c.avg_response_time_ms ?? c.response_time_ms ?? null,
-    status: c.status,
-    ssl_state: normalizeSSL(c.ssl_state),
-    ssl_days_left: c.ssl_days_left,
-    ssl_severity: c.ssl_severity,
-    health: c.health,
-  }))
+    .filter(c => c.checked_at)
+    .map(c => {
+      const rt = c.avg_response_time_ms ?? c.response_time_ms
+      const t = new Date(c.checked_at!)
+      const time = isNaN(t.getTime()) ? Date.now() : t.getTime()
+      return {
+        time: new Date(c.checked_at!).getTime(),
+        response_time: Number.isFinite(rt) && rt! >= 0 ? rt : null,
+        status: c.status,
+        ssl_state: c.ssl_state ?? "no_data",
+        ssl_days_left: c.ssl_days_left,
+        ssl_severity: c.ssl_severity,
+        health: c.health ?? "no_data",
+      }
+    })
 }, [rawData])
 
   const threshold = 500;
 
   const updateInterval = async () => {
-      try {
-  await api.patch(`/sites/${site_id}/interval`, {
-    check_interval: intervalEdit,
-  });
-} catch {
-  alert("Не вдалося оновити інтервал");
-}
+  try {
+    await api.patch(`/sites/${site_id}/interval`, {
+      check_interval: intervalEdit,
+    })
+
+    alert("Інтервал оновлено")
+  } catch {
+    alert("Не вдалося оновити інтервал")
+  }
 };
 
   const average = useMemo(() => {
-    const valid = chartData.filter(v => v.response_time != null)
-    if (!valid.length) return 0
-    return valid.reduce((acc, v) => acc + v.response_time!, 0) / valid.length
-  }, [chartData])
+  const valid = chartData.filter(v => v.response_time != null)
+  if (!valid.length) return null
+
+  return valid.reduce((acc, v) => acc + v.response_time!, 0) / valid.length
+}, [chartData])
 
   const handleArchive = async () => {
     if (!confirm("Архівувати сайт?")) return;
@@ -195,7 +202,7 @@ archived
 </div>
 
 <div className="text-xs text-gray-500 mt-1">
-  🔐 {sslLabel}
+  🔐 SSL: {sslLabel}
 </div>
       {/* HEADER */}
       <div className="flex justify-between items-start">
@@ -288,7 +295,7 @@ archived
 {expanded && (
   <div className="space-y-1 text-xs text-gray-500">
 
-  <div className="text-xs text-gray-500">
+<div className="text-xs text-gray-400 italic">
   Стан формується з HTTP, SSL та помилок
 </div>
 
@@ -296,7 +303,7 @@ archived
   {["24h", "7d", "30d"].map(r => (
     <button
       key={r}
-      onClick={() => setRange(r as any)}
+      onClick={() => setRange(r as "24h" | "7d" | "30d")}
       className={`px-3 py-1 rounded-md ${
         range === r ? "bg-blue-600 text-white" : "bg-gray-200"
       }`}
@@ -336,28 +343,43 @@ archived
 
     const p = payload?.[0]?.payload;
     if (!p) return null;
-    const pointState = normalizeSSL(p.ssl_state)
-    const pointMeta = sslMeta[pointState]
 
-    const pointLabel =
-    pointState === "http"
-    ? "Без SSL (HTTP)"
-    : sslMeta[pointState as keyof typeof sslMeta]?.label ?? "—"
+const pointState = p.ssl_state ?? "no_data"
+
+const pointMeta = sslMeta[pointState] ?? {
+  label: "Невідомо",
+  severity: "warn"
+}
+
+const healthLabels = {
+  critical: "🔴 Критично",
+  warning: "🟡 Попередження",
+  healthy: "🟢 Нормально",
+  no_data: "⚪ Немає даних",
+}
+
+const healthKey = p.health ?? "no_data"
+    const pointLabel = pointMeta?.label ?? "—"
 
     return (
       <div className="bg-white p-2 border rounded shadow text-xs">
         <div>
-        {new Date(p.time).toLocaleString("uk-UA", { timeZone: "Europe/Kyiv" })}
+        {new Date(p.time).toLocaleString("uk-UA", {
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  timeZone: "Europe/Kyiv"
+})}
         </div>
 
-        <div>⏱ {p.response_time ?? "—"} ms</div>
+        <div>⏱ {p.response_time != null ? `${p.response_time} ms` : "—"}</div>
 
         <div>
           Статус: {p.status ? (statusLabels[p.status as keyof typeof statusLabels] ?? "—") : "—"}
         </div>
 
         <div className="font-medium">
-        {pointLabel}
+        {pointMeta.label}
         </div>
 
         {pointState === "http" && (
@@ -366,19 +388,13 @@ archived
   </div>
 )}
 
-        <div>
-        Здоров'я:
-        {p.health === "critical" && " 🔴 Критично"}
-        {p.health === "warning" && " 🟡 Попередження"}
-        {p.health === "healthy" && " 🟢 Нормально"}
-        {p.health === "no_data" && "⚪ Немає даних"}
-        </div>
+        <div>Здоров'я: {healthLabels[healthKey] ?? "—"}</div>
 
         {p.ssl_days_left != null && (
           <div>
             {p.ssl_days_left <= 0
               ? "Термін дії SSL-сертифікату закінчився"
-              : `Термін дії  SSL-сертифікату закінчується через: ${p.ssl_days_left} днів`}
+              : `Термін дії SSL-сертифікату закінчується через: ${p.ssl_days_left} днів`}
           </div>
         )}
     </div>
@@ -386,24 +402,33 @@ archived
   }}
 />
 
-            <ReferenceLine y={average} stroke="orange" strokeDasharray="4 4" />
+            {average != null && (
+  <ReferenceLine y={average} stroke="orange" strokeDasharray="4 4" />
+)}
             <ReferenceLine y={threshold} stroke="red" strokeDasharray="2 2" />
 
-            <Line
-              dataKey="response_time"
+<Line
+  dataKey="response_time"
   stroke="#2563eb"
-dot={(props) => {
-  const { payload } = props
-  if (!payload) return false
+  dot={(props) => {
+    const { payload } = props
+    if (!payload) return false
 
-  const colorMap = {
-    critical: "#dc2626",
-    warning: "#f59e0b",
-    healthy: "#16a34a"
-  }
+const colorMap = {
+      critical: "#dc2626",
+      warning: "#f59e0b",
+      healthy: "#16a34a",
+      no_data: "#9ca3af"
+    }
 
-  return <circle r={3} fill={colorMap[payload.health as keyof typeof colorMap] || "#9ca3af"} />
-}}
+    const healthKey = payload.health ?? "no_data"
+return (
+      <circle
+        r={3}
+        fill={colorMap[healthKey] ?? "#9ca3af"}
+      />
+    )
+  }}
 />
           </LineChart>
         </ResponsiveContainer>
@@ -414,9 +439,10 @@ dot={(props) => {
     </div>
   );
 }
+
 function SLA({ label, value }: { label: string; value: number }) {
   let color = "text-gray-700";
-  if (value === undefined || value === null) {
+  if (!Number.isFinite(value)) {
   return (
     <div>
       <div className="text-gray-500">SLA ({label})</div>
@@ -432,7 +458,7 @@ function SLA({ label, value }: { label: string; value: number }) {
     <div>
       <div className="text-gray-500">SLA ({label})</div>
       <div className={`font-semibold ${color}`}>
-        {value != null ? value.toFixed(2) : "—"}%
+        {Number.isFinite(value) ? value.toFixed(2) : "—"}%
       </div>
     </div>
   );

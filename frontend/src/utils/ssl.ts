@@ -1,11 +1,21 @@
-const allowed = ["critical", "warning", "invalid", "ok", "no_data", "http"]
+export type SSLState =
+  | "ok"
+  | "warning"
+  | "critical"
+  | "invalid"
+  | "no_data"
+  | "http"
 
-export const normalizeSSL = (state?: string | null) => {
-  if (!state || !allowed.includes(state)) return "no_data"
-  return state
-}
+export const sslLabels = {
+  http: "Без SSL",
+  ok: "SSL дійсний",
+  warning: "Попередження",
+  critical: "Критично",
+  invalid: "Недійсний",
+  no_data: "Немає даних",
+} as const satisfies Record<SSLState, string>
 
-export const sslMeta = {
+export const sslMeta: Record<SSLState, { label: string; severity: "good" | "warn" | "bad" }> = {
   critical: { label: "🔥 Критично", severity: "bad" },
   warning: { label: "⚠ Попередження", severity: "warn" },
   invalid: { label: "❌ Недійсний", severity: "bad" },

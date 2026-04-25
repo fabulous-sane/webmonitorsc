@@ -6,8 +6,8 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 def compute_health(status, ssl_severity, error_rate, latency):
-    if status == "DOWN":
-        return "critical"
+    if ssl_severity == "warn" and status == "UP":
+        return "warning"
 
     if status in ("ERROR", "TIMEOUT"):
         return "critical"
@@ -199,7 +199,7 @@ WHERE
   AND cr.checked_at >= :cutoff
 
 GROUP BY checked_at
-ORDER BY checked_at ASC;
+ORDER BY checked_at ASC
     """)
 
     result = await session.execute(
