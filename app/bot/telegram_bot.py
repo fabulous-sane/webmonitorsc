@@ -254,16 +254,19 @@ async def site_details(callback: CallbackQuery):
                 f"{history_text}"
             )
 
+            is_http = site.url.startswith("http://")
             ssl_info = data.get("ssl")
 
-            if ssl_info:
-                if ssl_info["ssl_valid"] is False:
-                    text += "\n\n❌ <b>SSL:</b> недійсний"
-                elif ssl_info["ssl_warning"] == "critical":
+            if is_http:
+                text += "\n\n🌐 <b>SSL:</b> відсутній (HTTP)"
+            elif ssl_info is not None:
+                if ssl_info.get("ssl_warning") == "critical":
                     text += f"\n\n🔴 <b>SSL:</b> закінчується ({ssl_info['ssl_days_left']} днів)"
-                elif ssl_info["ssl_warning"] == "warning":
+                elif ssl_info.get("ssl_warning") == "warning":
                     text += f"\n\n🟡 <b>SSL:</b> скоро закінчиться ({ssl_info['ssl_days_left']} днів)"
-                elif ssl_info["ssl_valid"] is None:
+                elif ssl_info.get("ssl_valid") is False:
+                    text += "\n\n❌ <b>SSL:</b> недійсний"
+                elif ssl_info.get("ssl_valid") is None:
                     text += "\n\n⚪ <b>SSL:</b> немає даних"
                 else:
                     text += "\n\n🟢 <b>SSL:</b> OK"

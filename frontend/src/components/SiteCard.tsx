@@ -80,9 +80,13 @@ const formatDate = (d: string | null) => {
   })
 }
 
-const sslState = ssl_state ?? "no_data"
+const isHttp = url.startsWith("http://")
+
+const sslState = isHttp
+  ? "http"
+  : (ssl_state ?? "no_data")
+
 const sslLabel = sslLabels[sslState]
-const isHttp = sslState === "http"
 
   useEffect(() => {
     if (!expanded) return;
@@ -108,10 +112,12 @@ const chartData = useMemo(() => {
       const t = new Date(c.checked_at!)
       const time = isNaN(t.getTime()) ? Date.now() : t.getTime()
       return {
-        time: new Date(c.checked_at!).getTime(),
+        time,
         response_time: Number.isFinite(rt) && rt! >= 0 ? rt : null,
         status: c.status,
-        ssl_state: c.ssl_state ?? "no_data",
+        ssl_state: url.startsWith("http://")
+        ? "http"
+        : (c.ssl_state ?? "no_data"),
         ssl_days_left: c.ssl_days_left,
         ssl_severity: c.ssl_severity,
         health: c.health ?? "no_data",
@@ -263,14 +269,16 @@ archived
         </div>
       </div>
 <div className="grid grid-cols-3 gap-6 text-sm mt-4">
-  <uptime label="24г" value={uptime_24h} />
-  <uptime label="7д" value={uptime_7d} />
-  <uptime label="30д" value={uptime_30d} />
+  <Uptime label="24г" value={uptime_24h} />
+  <Uptime label="7д" value={uptime_7d} />
+  <Uptime label="30д" value={uptime_30d} />
 </div>
 
 <div className="grid grid-cols-2 gap-6 text-sm mt-4">
   <div>
-    <div className="text-gray-500">p95 latency</div>
+    <div className="text-xs text-gray-400">
+     p95 latency (95% запитів швидше цього значення)
+    </div>
     <div className="font-semibold">
       {p95_latency != null ? `${Math.round(p95_latency)} ms` : "—"}
     </div>
@@ -350,11 +358,14 @@ archived
     if (!p) return null;
 
 const pointState = p.ssl_state ?? "no_data"
-const isHttp = sslState === "http"
-const pointMeta = sslMeta[pointState] ?? {
-  label: "Невідомо",
-  severity: "warn"
-}
+const isHttp = pointState === "http"
+
+const pointMeta = !isHttp
+  ? sslMeta[pointState as keyof typeof sslMeta] ?? {
+      label: "Невідомо",
+      severity: "warn"
+    }
+  : null
 
 const healthLabels = {
   critical: "🔴 Критично",
@@ -385,7 +396,7 @@ const healthKey = p.health ?? "no_data"
 
         {!isHttp && (
   <div className="font-medium">
-    {pointMeta.label}
+    {pointMeta?.label}
   </div>
 )}
 
@@ -441,7 +452,7 @@ return (
   );
 }
 
-function uptime({ label, value }: { label: string; value: number }) {
+function Uptime({ label, value }: { label: string; value: number }) {
   let color = "text-gray-700";
   if (!Number.isFinite(value)) {
   return (
