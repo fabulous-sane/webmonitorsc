@@ -71,7 +71,6 @@ const formatKyiv = (d?: string | null) =>
       <b> {formatKyiv(data.retention_next_run)}</b>
     </div>
     </div>
-  </div>
 )}
     </div>
   )
