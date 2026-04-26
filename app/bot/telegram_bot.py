@@ -313,6 +313,14 @@ async def disconnect(message: types.Message):
         logger.exception("Disconnect failed")
         await safe_send(message.chat.id, "⚠️ Помилка сервера.")
 
+@dp.message(lambda m: m.text in ["/menu", "menu", "меню"])
+async def show_menu(message: types.Message):
+    await safe_send(
+        message.chat.id,
+        "📋 <b>Меню:</b>",
+        main_menu(),
+    )
+
 @dp.callback_query(lambda c: c.data == "back_to_sites")
 async def back_to_sites(callback: CallbackQuery):
     if not callback.message:
