@@ -40,7 +40,7 @@ ARRAY_AGG(cr.status_code ORDER BY cr.checked_at DESC)
   MAX(cr.ssl_warning) AS ssl_warning,
 
   CASE
-  WHEN s.url LIKE 'http://%' THEN 'http'
+  WHEN BOOL_OR(s.url LIKE 'http://%') THEN 'http'
   WHEN MAX(cr.ssl_warning) = 'critical' THEN 'critical'
   WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warning'
   WHEN BOOL_OR(cr.ssl_valid = false) THEN 'invalid'
@@ -64,7 +64,7 @@ WHERE
   AND s.user_id = :user_id
   AND cr.checked_at >= :cutoff
 
-GROUP BY checked_at
+GROUP BY date_trunc('minute', cr.checked_at)
 ORDER BY checked_at ASC
         LIMIT 50000
     """)

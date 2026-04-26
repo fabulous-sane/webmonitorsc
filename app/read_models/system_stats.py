@@ -23,16 +23,15 @@ async def get_system_status(session: AsyncSession) -> dict:
     ) AS ssl_no_ssl_sites,
 
     COUNT(DISTINCT s.id) FILTER (
-        WHERE cr.ssl_valid IS NULL
+    WHERE cr.ssl_valid = false
     AND cr.ssl_warning IS NULL
-    AND cr.ssl_valid IS NULL
-        AND s.url NOT LIKE 'http://%'
-    ) AS ssl_invalid_sites,
+    AND s.url NOT LIKE 'http://%'
+) AS ssl_invalid_sites,
 
     COUNT(DISTINCT s.id) FILTER (
         WHERE cr.ssl_valid IS NULL
-        AND cr.ssl_warning IS NULL
-        AND s.url NOT LIKE 'http://%'
+AND cr.ssl_warning IS NULL
+AND s.url NOT LIKE 'http://%'
     ) AS ssl_no_data_sites,
 
     COUNT(DISTINCT s.id) FILTER (

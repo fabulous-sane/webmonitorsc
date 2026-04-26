@@ -47,7 +47,7 @@ async def export_site_checks(
     for r in rows:
         status = r["status"]
         status_value = status if status else ""
-        timestamp = r["bucket"]
+        timestamp = r["checked_at"]
         writer.writerow([
             timestamp.isoformat() if timestamp else "",
             status_value,
