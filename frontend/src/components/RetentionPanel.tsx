@@ -36,7 +36,7 @@ const formatKyiv = (d?: string | null) =>
       ? "⏳ Ще не запускалось"
       : data.retention_delayed
       ? "⚠ Є затримка"
-      : "✅ Працює стабільно"}
+      : "✅ Очищення працює стабільно"}
   </div>
 
     <div className="space-y-2 text-xs">
