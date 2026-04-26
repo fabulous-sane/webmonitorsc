@@ -57,7 +57,7 @@ async def process_check_result(
     else:
         raw_status = SiteStatus.UP
 
-    latest_ssl = await results_repo.get_latest_ssl(site_id=site.id)
+    latest_ssl = await results_repo.get_latest_ssl(site_id=site.id) or {}
 
     await checks_repo.add_result(
         site_id=site.id,
@@ -90,48 +90,67 @@ async def process_check_result(
         )
 
     old_status = site.last_status
-    status_changed = stable and (old_status != raw_status)
+    new_status: SiteStatus = raw_status if stable else old_status or raw_status
+    status_changed = new_status != old_status
 
     if status_changed:
-        site.last_status = raw_status
+        site.last_status = new_status
 
-    def _ssl_state(valid, warning):
+    def _ssl_state(valid, warning, url):
+        if url.startswith("http://"):
+            return "http"
         if valid is None:
             return "no_data"
-
         if warning == "critical":
             return "critical"
-
         if warning == "warning":
             return "warning"
-
         if valid is False:
             return "invalid"
-
         return "ok"
 
-    prev_state = (
-        _ssl_state(latest_ssl["ssl_valid"], latest_ssl["ssl_warning"])
-        if latest_ssl
-        else "no_data"
-    )
+    if site.url.startswith("http://"):
+        ssl_changed = False
+    else:
+        prev_state = _ssl_state(
+            latest_ssl.get("ssl_valid"),
+            latest_ssl.get("ssl_warning"),
+            site.url
+        )
 
-    curr_state = _ssl_state(raw.ssl_valid, raw.ssl_warning)
+        curr_state = _ssl_state(
+            raw.ssl_valid,
+            raw.ssl_warning,
+            site.url
+        )
 
-    ssl_changed = (
-            curr_state != prev_state
-            and not (curr_state == "no_data" and prev_state == "no_data")
-    )
+        ssl_changed = (
+                curr_state != prev_state
+                and not (curr_state == "no_data" and prev_state == "no_data")
+        )
 
     notify_payload = None
 
-    if status_changed or ssl_changed:
+    if status_changed:
         notify_payload = NotifyPayload(
             site_id=site.id,
             site_name=site.name,
             url=site.url,
             old_status=old_status,
-            new_status=raw_status,
+            new_status=new_status,
+            status_code=raw.status_code,
+            response_time_ms=raw.response_time_ms,
+            ssl_warning=raw.ssl_warning,
+            ssl_days_left=raw.ssl_days_left,
+        )
+
+    elif ssl_changed:
+        notify_payload = NotifyPayload(
+            site_id=site.id,
+            site_name=site.name,
+            url=site.url,
+            old_status=None,  # важно
+            new_status=new_status,
             status_code=raw.status_code,
             response_time_ms=raw.response_time_ms,
             ssl_warning=raw.ssl_warning,
@@ -141,6 +160,6 @@ async def process_check_result(
     return ProcessResult(
         status_changed=status_changed,
         old_status=old_status,
-        new_status=raw_status,
+        new_status=new_status,
         notify_payload=notify_payload,
     )

@@ -33,19 +33,26 @@ class NotificationService:
             "ERROR": "⚠️",
         }.get(status_raw, "⚪")
 
-        old_raw = payload.old_status.name if payload.old_status else None
-        new_raw = payload.new_status.name
+        if payload.old_status is not None:
+            old_raw = payload.old_status.name
+            new_raw = payload.new_status.name
 
-        old = NotificationService.get_status_label(old_raw) if old_raw else "Невідомо"
-        new = NotificationService.get_status_label(new_raw)
+            old = NotificationService.get_status_label(old_raw)
+            new = NotificationService.get_status_label(new_raw)
 
-        lines = [
-            f"{emoji} <b>Зміна статусу сайту</b>",
-            "",
-            f"<b>Сайт:</b> {payload.site_name}",
-            f"<b>URL:</b> {payload.url}",
-            f"<b>Статус:</b> {old} → {new}",
-        ]
+            lines = [
+                f"{emoji} <b>Зміна статусу сайту</b>",
+                "",
+                f"<b>Сайт:</b> {payload.site_name}",
+                f"<b>URL:</b> {payload.url}",
+                f"<b>Статус:</b> {old} → {new}",
+            ]
+        else:
+            lines = [
+                "🔐 <b>Зміна стану SSL</b>",
+                f"<b>Сайт:</b> {payload.site_name}",
+                f"<b>URL:</b> {payload.url}",
+            ]
 
         if payload.status_code is not None:
             lines.append(f"<b>HTTP:</b> {payload.status_code}")
@@ -53,19 +60,19 @@ class NotificationService:
         if payload.response_time_ms is not None:
             lines.append(f"<b>Response:</b> {payload.response_time_ms} ms")
 
+        if payload.url.startswith("http://"):
+            lines.append("🌐 <b>SSL:</b> відсутній (HTTP)")
+            return "\n".join(lines)
+
         if payload.ssl_warning:
             if payload.ssl_warning == "critical":
-                lines.append(
-                    f"🔴 <b>SSL:</b> закінчується через {payload.ssl_days_left} днів"
-                )
+                lines.append(f"🔴 <b>SSL:</b> закінчується ({payload.ssl_days_left} днів)")
             elif payload.ssl_warning == "warning":
-                lines.append(
-                    f"🟡 <b>SSL:</b> скоро закінчиться ({payload.ssl_days_left} днів)"
-                )
+                lines.append(f"🟡 <b>SSL:</b> скоро закінчиться ({payload.ssl_days_left} днів)")
         elif payload.ssl_days_left is not None:
-            lines.append(
-                f"🟢 <b>SSL:</b> дійсний ({payload.ssl_days_left} днів)"
-            )
+            lines.append(f"🟢 <b>SSL:</b> дійсний ({payload.ssl_days_left} днів)")
+        else:
+            lines.append("⚪ <b>SSL:</b> немає даних")
 
         return "\n".join(lines)
 
