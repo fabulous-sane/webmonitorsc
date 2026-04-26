@@ -79,7 +79,7 @@ async def safe_send(chat_id: int, text: str, reply_markup=None):
 
 async def safe_edit(message: types.Message, text: str, keyboard=None):
     try:
-        if message.text == text:
+        if getattr(message, "text", None) == text:
             await message.edit_reply_markup(reply_markup=keyboard)
         else:
             await message.edit_text(text, reply_markup=keyboard)
@@ -184,6 +184,7 @@ async def list_sites(message: types.Message):
                 "📊 <b>Ваші сайти:</b>\nОберіть сайт:",
                 keyboard,
             )
+            await safe_send(message.chat.id, " ", main_menu())
 
     except Exception:
         logger.exception("List sites failed")
@@ -254,17 +255,18 @@ async def site_details(callback: CallbackQuery):
                 f"{history_text}"
             )
 
-            is_http = site.url.startswith("http://")
+            is_http = (site.url or "").startswith("http://")
             ssl_info = data.get("ssl")
 
             if is_http:
                 text += "\n\n🌐 <b>SSL:</b> відсутній (HTTP)"
-            elif not ssl_info:
+            elif ssl_info is None:
                 text += "\n\n⚪ <b>SSL:</b> немає даних"
             else:
                 warning = ssl_info.get("ssl_warning")
                 valid = ssl_info.get("ssl_valid")
                 days = ssl_info.get("ssl_days_left")
+                days = days if isinstance(days, int) else "?"
 
                 if warning == "critical":
                     text += f"\n\n🔴 <b>SSL:</b> закінчується ({days} днів)"
