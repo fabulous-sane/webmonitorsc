@@ -18,7 +18,7 @@ const formatKyiv = (d?: string | null) =>
   className="w-full flex justify-between items-center p-4"
 >
   <span className="text-sm font-medium text-gray-600">
-    Система зберігання даних
+    Службова інформація
   </span>
 
   <span className="text-xs text-blue-600 font-medium">
