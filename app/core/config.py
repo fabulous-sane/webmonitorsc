@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     MAX_CONCURRENT_CHECKS: int = 10
     FLAP_UP_THRESHOLD: int = 2
     FLAP_DOWN_THRESHOLD: int = 2
-    RETENTION_DAYS: int = 2
+    RETENTION_DAYS: int = 30
     SSL_WARNING_DAYS: int = 7
     SSL_CRITICAL_DAYS: int = 3
 
