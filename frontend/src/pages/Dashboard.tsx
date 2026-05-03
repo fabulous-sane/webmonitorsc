@@ -5,6 +5,7 @@ import Header from "../components/Header";
 import TelegramConnect from "../components/TelegramConnect";
 import AddSiteModal from "../components/AddSiteModal";
 import SystemSummary from "../components/SystemSummary";
+import RetentionPanel from "../components/RetentionPanel";
 import { isProblem } from "../types/status";
 import type { DashboardItem, SiteStatus } from "../types/api";
 import type { SystemStatus } from "../components/SystemSummary";
