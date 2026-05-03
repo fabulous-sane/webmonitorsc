@@ -54,19 +54,20 @@ SELECT
     cr.ssl_expires_at,
 
     CASE
-    WHEN MAX(s.url) LIKE 'http://%' THEN 'http'
-    WHEN MAX(cr.ssl_warning) = 'critical' THEN 'critical'
-    WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warning'
-    WHEN BOOL_OR(cr.ssl_valid = false) THEN 'invalid'
-    WHEN BOOL_OR(cr.ssl_valid = true) THEN 'ok'
-    ELSE 'no_data'
-    END AS ssl_state,
+  WHEN s.url LIKE 'http://%' THEN 'http'
+  WHEN cr.ssl_warning = 'critical' THEN 'critical'
+  WHEN cr.ssl_warning = 'warning' THEN 'warning'
+  WHEN cr.ssl_valid = false THEN 'invalid'
+  WHEN cr.ssl_valid = true THEN 'ok'
+  ELSE 'no_data'
+END AS ssl_state,
 
-    CASE
-  WHEN MAX(cr.ssl_warning) = 'critical' THEN 'bad'
-  WHEN BOOL_OR(cr.ssl_valid = false) THEN 'bad'
-  WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warn'
-  WHEN BOOL_OR(cr.ssl_valid = true) THEN 'good'
+CASE
+  WHEN s.url LIKE 'http://%' THEN 'warn'
+  WHEN cr.ssl_warning = 'critical' THEN 'bad'
+  WHEN cr.ssl_valid = false THEN 'bad'
+  WHEN cr.ssl_warning = 'warning' THEN 'warn'
+  WHEN cr.ssl_valid = true THEN 'good'
   ELSE 'warn'
 END AS ssl_severity,
 
@@ -182,10 +183,11 @@ CASE
 END AS ssl_state,
 
 CASE
+  WHEN MAX(s.url) LIKE 'http://%' THEN 'warn'
   WHEN MAX(cr.ssl_warning) = 'critical' THEN 'bad'
-  WHEN BOOL_OR(cr.ssl_valid) = false THEN 'bad'
+  WHEN BOOL_OR(cr.ssl_valid = false) THEN 'bad'
   WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warn'
-  WHEN BOOL_OR(cr.ssl_valid) = true THEN 'good'
+  WHEN BOOL_OR(cr.ssl_valid = true) THEN 'good'
   ELSE 'warn'
 END AS ssl_severity
 
@@ -197,7 +199,7 @@ WHERE
   AND s.user_id = :user_id
   AND cr.checked_at >= :cutoff
 
-GROUP BY checked_at
+GROUP BY date_trunc('minute', cr.checked_at)
 ORDER BY checked_at ASC
     """)
 
