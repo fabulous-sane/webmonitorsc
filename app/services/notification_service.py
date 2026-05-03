@@ -2,7 +2,7 @@ import logging
 from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.utils.ssl_state import resolve_ssl_state
 from app.monitoring.process_result import NotifyPayload
 from app.repositories.users import UsersRepository
 
@@ -60,16 +60,21 @@ class NotificationService:
         if payload.response_time_ms is not None:
             lines.append(f"<b>Response:</b> {payload.response_time_ms} ms")
 
-        if payload.url.startswith("http://"):
-            lines.append("🌐 <b>SSL:</b> відсутній (HTTP)")
-            return "\n".join(lines)
+        ssl_state = resolve_ssl_state(
+            payload.ssl_warning is None and payload.ssl_days_left is not None,
+            payload.ssl_warning,
+            payload.url,
+        )
 
-        if payload.ssl_warning:
-            if payload.ssl_warning == "critical":
-                lines.append(f"🔴 <b>SSL:</b> закінчується ({payload.ssl_days_left} днів)")
-            elif payload.ssl_warning == "warning":
-                lines.append(f"🟡 <b>SSL:</b> скоро закінчиться ({payload.ssl_days_left} днів)")
-        elif payload.ssl_days_left is not None:
+        if ssl_state == "http":
+            lines.append("🌐 <b>SSL:</b> відсутній (HTTP)")
+        elif ssl_state == "critical":
+            lines.append(f"🔴 <b>SSL:</b> критично ({payload.ssl_days_left} днів)")
+        elif ssl_state == "warning":
+            lines.append(f"🟡 <b>SSL:</b> скоро закінчиться ({payload.ssl_days_left} днів)")
+        elif ssl_state == "invalid":
+            lines.append("❌ <b>SSL:</b> недійсний")
+        elif ssl_state == "ok":
             lines.append(f"🟢 <b>SSL:</b> дійсний ({payload.ssl_days_left} днів)")
         else:
             lines.append("⚪ <b>SSL:</b> немає даних")

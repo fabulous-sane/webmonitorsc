@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.utils.ssl_state import resolve_ssl_state
 from app.models.site import Site
 from app.monitoring.status import SiteStatus
 from app.monitoring.run_check import CheckRawResult
@@ -43,9 +43,6 @@ async def process_check_result(
     checks_repo = ChecksRepository(session)
     results_repo = CheckResultsRepository(session)
     policy_errors = {"blocked_private_ip", "invalid_scheme"}
-
-    if raw.error_type in policy_errors:
-        return ProcessResult(False, site.last_status, site.last_status, None)
 
     if raw.error_type in policy_errors:
         return ProcessResult(False, site.last_status, site.last_status, None)
@@ -100,60 +97,42 @@ async def process_check_result(
     if status_changed:
         site.last_status = new_status
 
-    def _ssl_state(valid, warning, url):
-        if url.startswith("http://"):
-            return "http"
-        if valid is None:
-            return "no_data"
-        if warning == "critical":
-            return "critical"
-        if warning == "warning":
-            return "warning"
-        if valid is False:
-            return "invalid"
-        return "ok"
-
     if site.url.startswith("http://"):
         ssl_changed = False
 
     else:
         limit = max(settings.FLAP_UP_THRESHOLD, settings.FLAP_DOWN_THRESHOLD)
 
-        last_rows = await results_repo.get_last_ssl_states(site.id, limit)
+        last_rows = await results_repo.get_last_ssl_states(site.id, limit + 1)
 
         states = [
-            _ssl_state(valid, warning, site.url)
+            resolve_ssl_state(valid, warning, site.url)
             for valid, warning in last_rows
         ]
 
-        curr_state = _ssl_state(raw.ssl_valid, raw.ssl_warning, site.url)
-        prev_state = states[0] if states else None
+        curr_state = resolve_ssl_state(raw.ssl_valid, raw.ssl_warning, site.url)
+
+        prev_state = states[1] if len(states) > 1 else None
 
         ssl_changed = False
 
-        if prev_state is None:
+        if site.url.startswith("http://"):
+            ssl_changed = False
+
+        elif prev_state is None:
             ssl_changed = curr_state != "no_data"
 
         elif curr_state != prev_state:
 
-            if curr_state in ("critical", "invalid"):
-                ssl_stable = is_ssl_stable(
-                    states,
-                    curr_state,
-                    settings.FLAP_DOWN_THRESHOLD
-                )
-            else:
-                ssl_stable = is_ssl_stable(
-                    states,
-                    curr_state,
-                    settings.FLAP_UP_THRESHOLD
-                )
-
-            ssl_changed = (
-                    ssl_stable
-                    and curr_state != "no_data"
-                    and prev_state != "no_data"
+            threshold = (
+                settings.FLAP_DOWN_THRESHOLD
+                if curr_state in ("critical", "invalid")
+                else settings.FLAP_UP_THRESHOLD
             )
+
+            stable = len(states) >= threshold and all(s == curr_state for s in states[:threshold])
+
+            ssl_changed = stable
 
     notify_payload = None
 

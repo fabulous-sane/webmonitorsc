@@ -30,13 +30,17 @@ async def cleanup_old_checks(
 
     while True:
         stmt = text("""
-            DELETE FROM check_results
-            WHERE id IN (
-                SELECT id FROM check_results
-                WHERE checked_at < :cutoff
-                ORDER BY checked_at ASC
-                LIMIT :batch_size
-            )
+            WITH deleted AS (
+    DELETE FROM check_results
+    WHERE id IN (
+        SELECT id FROM check_results
+        WHERE checked_at < :cutoff
+        ORDER BY checked_at ASC
+        LIMIT :batch_size
+    )
+    RETURNING id
+)
+SELECT COUNT(*) FROM deleted;
         """)
 
         result = await session.execute(
@@ -44,7 +48,7 @@ async def cleanup_old_checks(
             {"cutoff": cutoff, "batch_size": batch_size},
         )
 
-        deleted = result.rowcount or 0
+        deleted = result.scalar() or 0
         if deleted < 0:
             deleted = 0
 

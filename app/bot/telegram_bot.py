@@ -14,7 +14,7 @@ from aiogram.types import (
 )
 from aiogram.client.default import DefaultBotProperties
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError
-
+from app.utils.ssl_state import resolve_ssl_state
 from app.core.config import settings
 from app.core.database import AsyncSessionLocal
 from app.services.site_service import SiteService
@@ -263,18 +263,24 @@ async def site_details(callback: CallbackQuery):
             elif ssl_info is None:
                 text += "\n\n⚪ <b>SSL:</b> немає даних"
             else:
-                warning = ssl_info.get("ssl_warning")
-                valid = ssl_info.get("ssl_valid")
                 days = ssl_info.get("ssl_days_left")
                 days = days if isinstance(days, int) else "?"
 
-                if warning == "critical":
-                    text += f"\n\n🔴 <b>SSL:</b> закінчується ({days} днів)"
-                elif warning == "warning":
+                ssl_state = resolve_ssl_state(
+                    ssl_info.get("ssl_valid"),
+                    ssl_info.get("ssl_warning"),
+                    site.url,
+                )
+
+                if ssl_state == "http":
+                    text += "\n\n🌐 <b>SSL:</b> відсутній (HTTP)"
+                elif ssl_state == "critical":
+                    text += f"\n\n🔴 <b>SSL:</b> критично ({days} днів)"
+                elif ssl_state == "warning":
                     text += f"\n\n🟡 <b>SSL:</b> скоро закінчиться ({days} днів)"
-                elif valid is False:
+                elif ssl_state == "invalid":
                     text += "\n\n❌ <b>SSL:</b> недійсний"
-                elif valid is True:
+                elif ssl_state == "ok":
                     text += "\n\n🟢 <b>SSL:</b> OK"
                 else:
                     text += "\n\n⚪ <b>SSL:</b> немає даних"

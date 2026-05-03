@@ -85,7 +85,7 @@ async def get_ssl_info(hostname: str):
             "ssl_expires_at": None,
             "ssl_days_left": None,
             "ssl_warning": None,
-            "ssl_error": "ssl_error",
+            "ssl_error": "handshake_error",
         }
 
     except Exception:
