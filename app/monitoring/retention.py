@@ -77,8 +77,9 @@ SELECT COUNT(*) FROM deleted;
         {"now": now, "deleted": deleted_value},
     )
 
-    return total_deleted
+    await session.commit()
 
+    return total_deleted
 
 
 

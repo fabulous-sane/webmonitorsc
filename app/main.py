@@ -146,7 +146,7 @@ async def ready(request: Request):
 
     return {"scheduler_running": scheduler.running}
 
-@app.get("/_debug/scheduler", include_in_schema=False)
+@app.get("/_debug/scheduler", include_in_schema=True)
 async def debug_scheduler(request: Request):
     scheduler = getattr(request.app.state, "scheduler", None)
 
