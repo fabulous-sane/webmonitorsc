@@ -108,14 +108,19 @@ async def process_check_result(
 
         limit = max(settings.FLAP_UP_THRESHOLD, settings.FLAP_DOWN_THRESHOLD)
 
-        last_rows = await results_repo.get_last_ssl_states(site.id, limit)
+        last_rows = await results_repo.get_last_ssl_states(site.id, limit + 1)
 
         states = [
             resolve_ssl_state(valid, warning, site.url)
             for valid, warning in last_rows
         ]
 
-        curr_state = resolve_ssl_state(raw.ssl_valid, raw.ssl_warning, site.url)
+        if not states:
+            curr_state = resolve_ssl_state(raw.ssl_valid, raw.ssl_warning, site.url)
+            prev_state = None
+        else:
+            curr_state = states[0]
+            prev_state = states[1] if len(states) > 1 else None
 
         if curr_state in ("critical", "invalid"):
             threshold = settings.FLAP_DOWN_THRESHOLD
@@ -123,11 +128,11 @@ async def process_check_result(
             threshold = settings.FLAP_UP_THRESHOLD
 
         stable = (
-            len(states) >= threshold
-            and all(s == curr_state for s in states[:threshold])
+                len(states) >= threshold
+                and all(s == curr_state for s in states[:threshold])
         )
 
-        ssl_changed = stable and curr_state != "no_data"
+        ssl_changed = stable and (prev_state is not None and curr_state != prev_state)
 
     notify_payload = None
 
