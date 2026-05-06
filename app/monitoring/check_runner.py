@@ -39,7 +39,7 @@ class CheckSiteUseCase:
                 if site.last_checked_at is not None:
                     delta = (now - site.last_checked_at).total_seconds()
 
-                    if delta < site.check_interval * 0.8:
+                    if delta < max(site.check_interval * 0.8, 5):
                         logger.debug("Skipped duplicate check for site %s", site_id)
                         return
 

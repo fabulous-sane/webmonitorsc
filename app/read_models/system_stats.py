@@ -101,6 +101,7 @@ LEFT JOIN LATERAL (
     SELECT ssl_warning, ssl_valid
     FROM check_results
     WHERE site_id = s.id
+    AND checked_at >= NOW() - INTERVAL '1 hour'
     ORDER BY checked_at DESC
     LIMIT 1
 ) cr ON true

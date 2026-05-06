@@ -10,6 +10,7 @@ from app.repositories.checks import ChecksRepository
 from app.repositories.check_results import CheckResultsRepository
 from app.core.config import settings
 
+
 @dataclass
 class NotifyPayload:
     site_id: UUID
@@ -23,6 +24,7 @@ class NotifyPayload:
     ssl_warning: str | None = None
     ssl_days_left: int | None = None
 
+
 @dataclass
 class ProcessResult:
     status_changed: bool
@@ -30,8 +32,6 @@ class ProcessResult:
     new_status: SiteStatus
     notify_payload: NotifyPayload | None
 
-def is_ssl_stable(states: list[str], target: str, threshold: int):
-    return len(states) >= threshold and all(s == target for s in states[:threshold])
 
 async def process_check_result(
     *,
@@ -42,11 +42,12 @@ async def process_check_result(
 
     checks_repo = ChecksRepository(session)
     results_repo = CheckResultsRepository(session)
-    policy_errors = {"blocked_private_ip", "invalid_scheme"}
 
+    policy_errors = {"blocked_private_ip", "invalid_scheme"}
     if raw.error_type in policy_errors:
         return ProcessResult(False, site.last_status, site.last_status, None)
 
+    # --- 1. MAP STATUS ---
     if raw.error_type == "timeout":
         raw_status = SiteStatus.TIMEOUT
     elif raw.error_type in ("connection_error", "request_error"):
@@ -60,6 +61,7 @@ async def process_check_result(
     else:
         raw_status = SiteStatus.UP
 
+    # --- 2. SAVE RESULT ---
     await checks_repo.add_result(
         site_id=site.id,
         status=raw_status,
@@ -71,11 +73,12 @@ async def process_check_result(
         ssl_warning=raw.ssl_warning,
     )
 
-    threshold = (
-        settings.FLAP_DOWN_THRESHOLD
-        if raw_status == SiteStatus.DOWN
-        else settings.FLAP_UP_THRESHOLD
-    )
+    # --- 3. HTTP ANTI-FLAPPING ---
+    if raw_status in (SiteStatus.DOWN, SiteStatus.ERROR, SiteStatus.TIMEOUT):
+        threshold = settings.FLAP_DOWN_THRESHOLD
+    else:
+        threshold = settings.FLAP_UP_THRESHOLD
+
     threshold = max(threshold, 1)
 
     if threshold == 1:
@@ -85,25 +88,27 @@ async def process_check_result(
             site_id=site.id,
             limit=threshold,
         )
+
         http_stable = (
-                len(last_statuses) == threshold
-                and all(s == raw_status for s in last_statuses)
+            len(last_statuses) == threshold
+            and all(s == raw_status for s in last_statuses)
         )
 
     old_status = site.last_status
-    new_status: SiteStatus = raw_status if http_stable else old_status or raw_status
+    new_status: SiteStatus = raw_status if http_stable else (old_status or raw_status)
+
     status_changed = new_status != old_status
 
     if status_changed:
         site.last_status = new_status
 
-    if site.url.startswith("http://"):
-        ssl_changed = False
+    ssl_changed = False
 
-    else:
+    if not site.url.startswith("http://"):
+
         limit = max(settings.FLAP_UP_THRESHOLD, settings.FLAP_DOWN_THRESHOLD)
 
-        last_rows = await results_repo.get_last_ssl_states(site.id, limit + 1)
+        last_rows = await results_repo.get_last_ssl_states(site.id, limit)
 
         states = [
             resolve_ssl_state(valid, warning, site.url)
@@ -112,27 +117,17 @@ async def process_check_result(
 
         curr_state = resolve_ssl_state(raw.ssl_valid, raw.ssl_warning, site.url)
 
-        prev_state = states[1] if len(states) > 1 else None
+        if curr_state in ("critical", "invalid"):
+            threshold = settings.FLAP_DOWN_THRESHOLD
+        else:
+            threshold = settings.FLAP_UP_THRESHOLD
 
-        ssl_changed = False
+        stable = (
+            len(states) >= threshold
+            and all(s == curr_state for s in states[:threshold])
+        )
 
-        if site.url.startswith("http://"):
-            ssl_changed = False
-
-        elif prev_state is None:
-            ssl_changed = curr_state != "no_data"
-
-        elif curr_state != prev_state:
-
-            threshold = (
-                settings.FLAP_DOWN_THRESHOLD
-                if curr_state in ("critical", "invalid")
-                else settings.FLAP_UP_THRESHOLD
-            )
-
-            stable = len(states) >= threshold and all(s == curr_state for s in states[:threshold])
-
-            ssl_changed = stable
+        ssl_changed = stable and curr_state != "no_data"
 
     notify_payload = None
 

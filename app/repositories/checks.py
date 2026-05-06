@@ -83,4 +83,4 @@ class ChecksRepository:
         )
 
         result = await self.session.execute(stmt)
-        return [row[0] for row in result.all()]
+        return [row[0] for row in result.fetchall()]

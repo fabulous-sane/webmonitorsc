@@ -7,8 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 def compute_health(status, ssl_severity, error_rate, latency):
 
-    if status in ("ERROR", "TIMEOUT"):
+    if status == "ERROR":
         return "critical"
+
+    if status == "TIMEOUT":
+        return "warning"
 
     if not status:
         return "no_data"
