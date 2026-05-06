@@ -32,13 +32,10 @@ async def cleanup_old_checks(
         stmt = text("""
             WITH deleted AS (
     DELETE FROM check_results
-    WHERE id IN (
-        SELECT id FROM check_results
-        WHERE checked_at < :cutoff
-        ORDER BY checked_at ASC
-        LIMIT :batch_size
-    )
-    RETURNING id
+WHERE checked_at < :cutoff
+ORDER BY checked_at
+LIMIT :batch_size
+RETURNING id;
 )
 SELECT COUNT(*) FROM deleted;
         """)
@@ -60,7 +57,7 @@ SELECT COUNT(*) FROM deleted;
 
         await asyncio.sleep(0.1)
 
-    deleted_value = total_deleted if total_deleted > 0 else None
+    deleted_value = total_deleted
 
     if total_deleted == 0:
         logger.info("Retention: nothing to delete")

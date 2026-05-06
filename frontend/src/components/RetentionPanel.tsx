@@ -3,6 +3,10 @@ import type { SystemStatus } from "../components/SystemSummary"
 export default function RetentionPanel({ data }: { data: SystemStatus }) {
   const [open, setOpen] = useState(false)
 
+const isCleanRun =
+  data.retention_deleted_last === null &&
+  !data.retention_never_run
+
 const formatKyiv = (d?: string | null) =>
   d
     ? new Date(d).toLocaleString("uk-UA", {
@@ -31,12 +35,14 @@ const formatKyiv = (d?: string | null) =>
 
   <div className="font-medium">
     {data.retention_broken
-      ? "❌ Планувальник не працює"
-      : data.retention_never_run
-      ? "⏳ Ще не запускалось"
-      : data.retention_delayed
-      ? "⚠ Є затримка"
-      : "✅ Очищення працює стабільно"}
+  ? "❌ Планувальник не працює"
+  : data.retention_never_run
+  ? "⏳ Ще не запускалось"
+  : data.retention_delayed
+  ? "⚠ Є затримка"
+  : isCleanRun
+  ? "🟢 Дані вже очищені"
+  : "✅ Очищення працює стабільно"}
   </div>
 
     <div className="space-y-2 text-xs">
@@ -65,7 +71,11 @@ const formatKyiv = (d?: string | null) =>
 
     <div>
       Видалено записів:
-      <b> {data.retention_deleted_last ?? 0}</b>
+      <b>
+        {data.retention_deleted_last === null
+        ? "немає"
+        : data.retention_deleted_last}
+        </b>
     </div>
 
     <div>
