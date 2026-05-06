@@ -37,8 +37,8 @@ export default function ResetPassword() {
     try {
       await api.post("/auth/reset-password", {
         token,
-        password,
-      });
+        new_password: password,
+        });
 
       setStatus("success");
       setMessage("Пароль успішно оновлено.");
