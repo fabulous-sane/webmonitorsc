@@ -18,6 +18,29 @@ def compute_ssl_warning(days_left: int | None) -> str | None:
         return "warning"
     return None
 
+def _read_cert_without_verify(hostname: str, port: int = 443):
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
+
+    with socket.create_connection((hostname, port), timeout=3) as sock:
+        with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+            cert = ssock.getpeercert()
+
+    expires_str = cert.get("notAfter")
+    if not expires_str:
+        raise ValueError("No expiration in cert")
+
+    expires_at = datetime.strptime(
+        expires_str, "%b %d %H:%M:%S %Y %Z"
+    ).replace(tzinfo=timezone.utc)
+
+    now = datetime.now(timezone.utc)
+    delta = expires_at - now
+    days_left = math.ceil(delta.total_seconds() / 86400)
+
+    return expires_at, days_left
+
 def _get_ssl_info_sync(hostname: str, port: int = 443):
     if not hostname:
         raise ValueError("Empty hostname")
@@ -61,6 +84,31 @@ async def get_ssl_info(hostname: str):
             timeout=5,
         )
 
+    except ssl.SSLCertVerificationError:
+        try:
+            expires_at, days_left = await asyncio.wait_for(
+                asyncio.to_thread(_read_cert_without_verify, hostname),
+                timeout=5,
+            )
+
+            warning = compute_ssl_warning(days_left)
+
+            return {
+                "ssl_valid": False,
+                "ssl_expires_at": expires_at,
+                "ssl_days_left": days_left,
+                "ssl_warning": "critical" if days_left <= 0 else warning,
+                "ssl_error": "cert_invalid",
+            }
+        except Exception:
+            return {
+                "ssl_valid": False,
+                "ssl_expires_at": None,
+                "ssl_days_left": None,
+                "ssl_warning": None,
+                "ssl_error": "cert_invalid",
+            }
+
     except asyncio.TimeoutError:
         return {
             "ssl_valid": False,
@@ -68,15 +116,6 @@ async def get_ssl_info(hostname: str):
             "ssl_days_left": None,
             "ssl_warning": None,
             "ssl_error": "timeout",
-        }
-
-    except ssl.SSLCertVerificationError:
-        return {
-            "ssl_valid": False,
-            "ssl_expires_at": None,
-            "ssl_days_left": None,
-            "ssl_warning": None,
-            "ssl_error": "cert_invalid",
         }
 
     except ssl.SSLError:
