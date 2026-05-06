@@ -73,7 +73,7 @@ const formatKyiv = (d?: string | null) =>
       Видалено записів:
       <b>
         {data.retention_deleted_last === null
-        ? "немає"
+        ? " немає"
         : data.retention_deleted_last}
         </b>
     </div>

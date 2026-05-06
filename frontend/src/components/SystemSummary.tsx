@@ -52,7 +52,7 @@ export default function SystemSummary({ data }: { data: SystemStatus | null }) {
     <div className="space-y-4">
       {/* GLOBAL */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-        <Card label="Активні сайти" value={data.active_sites} />
+        <Card label="Активні сайти (макс. 20 сайтів)" value={data.active_sites} />
         <Card label="Архівовані" value={data.archived_sites} />
         <Card label="Перевірки (сьогодні)" value={data.checks_24h} />
     </div>
