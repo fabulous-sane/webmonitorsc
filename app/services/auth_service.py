@@ -3,6 +3,7 @@
 import logging
 from datetime import timedelta, datetime, timezone
 
+from fastapi import HTTPException
 from jose import JWTError, jwt
 from sqlalchemy.exc import IntegrityError
 
@@ -163,16 +164,16 @@ class AuthService:
         user = await self.users_repo.get_by_password_reset_token(token_hash)
 
         if not user:
-            raise InvalidToken()
+            raise HTTPException(status_code=400, detail="Invalid token")
 
         if (
-            user.password_reset_expires_at is None
-            or user.password_reset_expires_at < datetime.now(timezone.utc)
+                user.password_reset_expires_at is None
+                or user.password_reset_expires_at < datetime.now(timezone.utc)
         ):
-            raise TokenExpired()
+            raise HTTPException(status_code=400, detail="Token expired")
 
         if len(new_password) < 6:
-            raise ValueError("Password is too short")
+            raise HTTPException(status_code=422, detail="Password too short")
 
         user.password_hash = hash_password(new_password)
         user.password_reset_token_hash = None
