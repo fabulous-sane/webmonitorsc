@@ -46,19 +46,20 @@ const handleSubmit = async (e: React.FormEvent) => {
     setStatus("success");
     setMessage("Пароль успішно оновлено.");
   } catch (err: any) {
-    const statusCode = err.response?.status;
+  const statusCode = err.response?.status;
 
-    if (statusCode === 422) {
-      setMessage("Пароль має містити щонайменше 6 символів.");
-    } else if (statusCode === 400) {
-      setMessage("Посилання недійсне або прострочене.");
-    } else {
-      setMessage("Сталася помилка. Спробуйте ще раз.");
-    }
-
-    setStatus("error");
+  if (statusCode === 422) {
+    setMessage("Пароль має містити щонайменше 6 символів.");
+  } else if (statusCode === 400) {
+    setMessage("Посилання недійсне або прострочене.");
+  } else if (statusCode === 500) {
+    setMessage("Помилка сервера. Спробуйте пізніше.");
+  } else {
+    setMessage("Невідома помилка.");
   }
-};
+
+  setStatus("error");
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
