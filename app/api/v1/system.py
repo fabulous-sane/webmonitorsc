@@ -6,7 +6,8 @@ import logging
 from app.core.config import settings
 from app.core.database import get_db
 from app.read_models.system_stats import get_system_status
-
+from app.security.dependencies import get_current_user
+from app.models.user import User
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/system", tags=["system"])
@@ -15,8 +16,9 @@ router = APIRouter(prefix="/system", tags=["system"])
 async def system_status(
     request: Request,
     session: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
-    data = await get_system_status(session)
+    data = await get_system_status(session, current_user.id)
     now = datetime.now(timezone.utc)
 
     cutoff = now - timedelta(days=settings.RETENTION_DAYS)
