@@ -30,9 +30,6 @@ class SiteService:
             url: str,
             check_interval: int,
     ):
-        count = await self._repo.count_active_by_user(user_id)
-        if count >= settings.MAX_SITES_PER_USER:
-            raise SiteLimitExceeded()
 
         existing_by_name = await self._repo.get_by_user_and_name(
             user_id=user_id,
@@ -40,24 +37,29 @@ class SiteService:
         )
 
         if existing_by_name:
-            if not existing_by_name.is_active:
-                existing_by_name.is_active = True
-                existing_by_name.url = url
-                existing_by_name.check_interval = check_interval
-                existing_by_name.last_status = None
-                existing_by_name.last_checked_at = None
-                existing_by_name.consecutive_failures = 0
-                await self._session.commit()
+            if existing_by_name.is_active:
+                raise SiteAlreadyExists()
 
-                if self._monitoring:
-                    self._monitoring.activate_site(
-                        site_id=existing_by_name.id,
-                        interval_seconds=existing_by_name.check_interval,
-                    )
+            count = await self._repo.count_active_by_user(user_id)
+            if count >= settings.MAX_SITES_PER_USER:
+                raise SiteLimitExceeded()
 
-                return existing_by_name
+            existing_by_name.is_active = True
+            existing_by_name.url = url
+            existing_by_name.check_interval = check_interval
+            existing_by_name.last_status = None
+            existing_by_name.last_checked_at = None
+            existing_by_name.consecutive_failures = 0
 
-            raise SiteAlreadyExists()
+            await self._session.commit()
+
+            if self._monitoring:
+                self._monitoring.activate_site(
+                    site_id=existing_by_name.id,
+                    interval_seconds=existing_by_name.check_interval,
+                )
+
+            return existing_by_name
 
         existing_by_url = await self._repo.get_by_user_and_url(
             user_id=user_id,
@@ -65,24 +67,33 @@ class SiteService:
         )
 
         if existing_by_url:
-            if not existing_by_url.is_active:
-                existing_by_url.is_active = True
-                existing_by_url.name = name
-                existing_by_url.check_interval = check_interval
-                existing_by_url.last_status = None
-                existing_by_url.last_checked_at = None
-                existing_by_url.consecutive_failures = 0
-                await self._session.commit()
+            if existing_by_url.is_active:
+                raise SiteAlreadyExists()
 
-                if self._monitoring:
-                    self._monitoring.activate_site(
-                        site_id=existing_by_url.id,
-                        interval_seconds=existing_by_url.check_interval, # type: ignore[arg-type]
-                    )
+            count = await self._repo.count_active_by_user(user_id)
+            if count >= settings.MAX_SITES_PER_USER:
+                raise SiteLimitExceeded()
 
-                return existing_by_url
+            existing_by_url.is_active = True
+            existing_by_url.name = name
+            existing_by_url.check_interval = check_interval
+            existing_by_url.last_status = None
+            existing_by_url.last_checked_at = None
+            existing_by_url.consecutive_failures = 0
 
-            raise SiteAlreadyExists()
+            await self._session.commit()
+
+            if self._monitoring:
+                self._monitoring.activate_site(
+                    site_id=existing_by_url.id,
+                    interval_seconds=existing_by_url.check_interval,
+                )
+
+            return existing_by_url
+
+        count = await self._repo.count_active_by_user(user_id)
+        if count >= settings.MAX_SITES_PER_USER:
+            raise SiteLimitExceeded()
 
         try:
             site = await self._repo.create(
