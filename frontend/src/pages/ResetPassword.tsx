@@ -27,6 +27,13 @@ export default function ResetPassword() {
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
+  const token = searchParams.get("token");
+
+  if (!token) {
+    setMessage("Недійсне посилання.");
+    return;
+  }
+
   if (password.length < 6) {
     setMessage("Пароль має містити щонайменше 6 символів.");
     return;
@@ -46,20 +53,20 @@ const handleSubmit = async (e: React.FormEvent) => {
     setStatus("success");
     setMessage("Пароль успішно оновлено.");
   } catch (err: any) {
-  const statusCode = err.response?.status;
+    console.log(err.response?.data);
 
-  if (statusCode === 422) {
-    setMessage("Пароль має містити щонайменше 6 символів.");
-  } else if (statusCode === 400) {
-    setMessage("Посилання недійсне або прострочене.");
-  } else if (statusCode === 500) {
-    setMessage("Помилка сервера. Спробуйте пізніше.");
-  } else {
-    setMessage("Невідома помилка.");
+    const statusCode = err.response?.status;
+
+    if (statusCode === 422) {
+      setMessage("Пароль має містити щонайменше 6 символів.");
+    } else if (statusCode === 400) {
+      setMessage("Посилання недійсне або вже використане.");
+    } else {
+      setMessage("Помилка сервера.");
+    }
+
+    setStatus("error");
   }
-
-  setStatus("error");
-}
 };
 
   return (
