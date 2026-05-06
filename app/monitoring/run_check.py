@@ -54,7 +54,11 @@ async def _is_private_host(host: str | None) -> bool:
 
         return False
 
+    except socket.gaierror:
+        return False
+
     except Exception:
+        logger.exception("Host privacy check failed for %s", host)
         return True
 
 
