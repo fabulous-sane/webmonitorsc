@@ -11,12 +11,12 @@ SELECT
 
     COUNT(DISTINCT s.id) FILTER (
         WHERE cr.ssl_warning = 'critical'
-        AND s.url NOT LIKE 'http://%'
+          AND s.url NOT LIKE 'http://%'
     ) AS ssl_critical_sites,
 
     COUNT(DISTINCT s.id) FILTER (
         WHERE cr.ssl_warning = 'warning'
-        AND s.url NOT LIKE 'http://%'
+          AND s.url NOT LIKE 'http://%'
     ) AS ssl_warning_sites,
 
     COUNT(DISTINCT s.id) FILTER (
@@ -25,25 +25,25 @@ SELECT
 
     COUNT(DISTINCT s.id) FILTER (
         WHERE cr.ssl_valid = false
-        AND cr.ssl_warning IS NULL
-        AND s.url NOT LIKE 'http://%'
+          AND cr.ssl_warning IS NULL
+          AND s.url NOT LIKE 'http://%'
     ) AS ssl_invalid_sites,
 
     COUNT(DISTINCT s.id) FILTER (
         WHERE cr.ssl_valid IS NULL
-        AND cr.ssl_warning IS NULL
-        AND s.url NOT LIKE 'http://%'
+          AND cr.ssl_warning IS NULL
+          AND s.url NOT LIKE 'http://%'
     ) AS ssl_no_data_sites,
 
     COUNT(DISTINCT s.id) FILTER (
         WHERE cr.ssl_valid = true
-        AND cr.ssl_warning IS NULL
-        AND s.url NOT LIKE 'http://%'
+          AND cr.ssl_warning IS NULL
+          AND s.url NOT LIKE 'http://%'
     ) AS ssl_ok_sites,
 
     COUNT(DISTINCT s.id) FILTER (
         WHERE (
-            cr.ssl_warning IN ('critical','warning')
+            cr.ssl_warning IN ('critical', 'warning')
             OR cr.ssl_valid = false
         )
         AND s.url NOT LIKE 'http://%'
