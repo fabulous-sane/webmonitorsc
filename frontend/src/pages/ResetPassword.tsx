@@ -24,29 +24,41 @@ export default function ResetPassword() {
     setStatus("form");
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    if (password !== confirmPassword) {
-      setMessage("Паролі не співпадають.");
-      return;
+  if (password.length < 6) {
+    setMessage("Пароль має містити щонайменше 6 символів.");
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    setMessage("Паролі не співпадають.");
+    return;
+  }
+
+  try {
+    await api.post("/auth/reset-password", {
+      token,
+      new_password: password,
+    });
+
+    setStatus("success");
+    setMessage("Пароль успішно оновлено.");
+  } catch (err: any) {
+    const statusCode = err.response?.status;
+
+    if (statusCode === 422) {
+      setMessage("Пароль має містити щонайменше 6 символів.");
+    } else if (statusCode === 400) {
+      setMessage("Посилання недійсне або прострочене.");
+    } else {
+      setMessage("Сталася помилка. Спробуйте ще раз.");
     }
 
-    const token = searchParams.get("token");
-
-    try {
-      await api.post("/auth/reset-password", {
-        token,
-        new_password: password,
-        });
-
-      setStatus("success");
-      setMessage("Пароль успішно оновлено.");
-    } catch {
-      setStatus("error");
-      setMessage("Прострочений або неправильний токен.");
-    }
-  };
+    setStatus("error");
+  }
+};
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
