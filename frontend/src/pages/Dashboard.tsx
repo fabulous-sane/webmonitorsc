@@ -5,7 +5,6 @@ import Header from "../components/Header";
 import TelegramConnect from "../components/TelegramConnect";
 import AddSiteModal from "../components/AddSiteModal";
 import SystemSummary from "../components/SystemSummary";
-import RetentionPanel from "../components/RetentionPanel";
 import { isProblem } from "../types/status";
 import type { DashboardItem, SiteStatus } from "../types/api";
 import type { SystemStatus } from "../components/SystemSummary";
@@ -134,9 +133,6 @@ if (
     <div className="space-y-6">
 
 <SystemSummary data={systemData} />
-<div className="opacity-90">
-  {systemData && <RetentionPanel data={systemData} />}
-</div>
 
   {/* FILTERS */}
   <div className="space-y-4">
