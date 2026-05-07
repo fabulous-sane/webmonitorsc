@@ -122,9 +122,7 @@ JOIN sites s ON s.id = cr.site_id
 WHERE s.user_id = :user_id
 AND s.is_active = true
 AND cr.checked_at >= (
-    DATE_TRUNC('day', NOW() AT TIME ZONE 'UTC')
-    AT TIME ZONE 'Europe/Kyiv'
-)
+    DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv')
     """)
 
     events = await session.execute(events_stmt, {"user_id": user_id})

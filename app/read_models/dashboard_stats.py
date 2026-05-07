@@ -65,7 +65,7 @@ LEFT JOIN LATERAL (
 
     FROM check_results
     WHERE site_id = s.id
-      AND checked_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Kyiv'
+      AND checked_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv')
 ) stats_24 ON true
 
 LEFT JOIN (
@@ -133,7 +133,9 @@ async def get_site_checks(
     stmt = text("""
     SELECT
       date_trunc('minute', cr.checked_at) AS checked_at,
-      AVG(cr.response_time_ms) FILTER (WHERE cr.response_time_ms IS NOT NULL),
+      AVG(cr.response_time_ms)
+FILTER (WHERE cr.response_time_ms IS NOT NULL)
+AS avg_response_time_ms,
 
       CASE
         WHEN BOOL_OR(cr.ssl_valid = false) THEN false

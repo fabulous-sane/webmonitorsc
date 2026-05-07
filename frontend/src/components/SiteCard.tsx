@@ -101,32 +101,25 @@ const sslLabel = sslLabels[sslState] ?? "Немає даних"
   }, [expanded, site_id, range]);
 
 const chartData = useMemo(() => {
-  if (!rawData.length) return []
+  if (!rawData || rawData.length === 0) return []
 
-  return rawData
-  .filter(c => c.checked_at)
-  .map(c => {
+  return rawData.map(c => {
+    const t = new Date(c.checked_at ?? "")
+    const time = isNaN(t.getTime()) ? null : t.getTime()
+
     const rt = c.avg_response_time_ms ?? c.response_time_ms
-
-    const validRt =
-      typeof rt === "number" && Number.isFinite(rt) && rt >= 0
-        ? rt
-        : null
-
-    const t = new Date(c.checked_at!)
-    const time = isNaN(t.getTime()) ? Date.now() : t.getTime()
 
     return {
       time,
-      response_time: validRt,
-      status: c.status,
+      response_time:
+        typeof rt === "number" && isFinite(rt) ? rt : null,
+      status: c.status ?? null,
       ssl_state:
         c.ssl_state ?? (url.startsWith("http://") ? "http" : "no_data"),
-      ssl_days_left: c.ssl_days_left,
-      ssl_severity: c.ssl_severity,
+      ssl_days_left: c.ssl_days_left ?? null,
       health: c.health ?? "no_data",
     }
-  })
+  }).filter(p => p.time !== null)
 }, [rawData])
 
   const threshold = 500;
@@ -354,7 +347,13 @@ archived
             : d.toLocaleDateString("uk-UA", { day: '2-digit', month: '2-digit', timeZone: "Europe/Kyiv" })
             }}
             />
-           <YAxis domain={[0, (dataMax: number) => dataMax * 1.2]} />
+           <YAxis
+  domain={[
+    0,
+    (dataMax: number) =>
+      Number.isFinite(dataMax) ? dataMax * 1.2 : 1000
+  ]}
+/>
 
             <Tooltip
     content={({ active, payload }) => {
