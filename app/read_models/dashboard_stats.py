@@ -26,7 +26,6 @@ SELECT
     cr.ssl_valid,
     cr.ssl_days_left,
     cr.ssl_warning,
-    cr.ssl_error,
     cr.ssl_expires_at,
     
     COALESCE(stats_24.uptime_24h, 0) AS uptime_24h,
@@ -96,12 +95,11 @@ ORDER BY s.created_at DESC;
             r.get("ssl_valid"),
             r.get("ssl_warning"),
             r.get("url"),
-            ssl_error=r.get("ssl_error"),
         )
 
         r["ssl_state"] = ssl_state
 
-        status_str = r.get("last_status")
+        status_str = r.get("status")
 
         r["health"] = compute_health(
             status_str,
@@ -142,7 +140,6 @@ async def get_site_checks(
 
       MIN(cr.ssl_days_left) AS ssl_days_left,
       MAX(cr.ssl_warning) AS ssl_warning,
-      MAX(cr.ssl_error) AS ssl_error,
       MAX(s.url) AS url,
 
       (
@@ -177,12 +174,11 @@ async def get_site_checks(
             r.get("ssl_valid"),
             r.get("ssl_warning"),
             r.get("url"),
-            ssl_error=r.get("ssl_error"),
         )
 
         r["ssl_state"] = ssl_state
 
-        status_str = r.get("last_status")
+        status_str = r.get("status")
 
         r["health"] = compute_health(
             status_str,

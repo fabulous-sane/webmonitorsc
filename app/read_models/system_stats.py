@@ -17,7 +17,6 @@ SELECT
     cr.ssl_valid,
     cr.ssl_warning,
     cr.checked_at,
-    cr.ssl_error
 
 FROM sites s
 
@@ -67,7 +66,6 @@ WHERE s.user_id = :user_id
             ssl_valid,
             ssl_warning,
             url,
-            ssl_error=ssl_error,
         )
 
         health = compute_health(status, ssl_state)

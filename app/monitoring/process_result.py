@@ -79,7 +79,6 @@ async def process_check_result(
         raw.ssl_valid,
         raw.ssl_warning,
         site.url,
-        ssl_error=raw.ssl_error,
     )
 
     current_health = compute_health(raw_status, ssl_state)

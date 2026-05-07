@@ -8,7 +8,6 @@ def resolve_ssl_state(
     if url.startswith("http://"):
         return "http"
 
-    # ❗ КРИТИЧНО: timeout ≠ invalid
     if ssl_error == "timeout":
         return "no_data"
 
