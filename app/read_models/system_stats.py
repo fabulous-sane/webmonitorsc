@@ -24,22 +24,22 @@ SELECT
     ) AS ssl_no_ssl_sites,
 
     COUNT(DISTINCT s.id) FILTER (
-        WHERE cr.ssl_valid = false
-          AND cr.ssl_warning IS NULL
-          AND s.url NOT LIKE 'http://%'
-    ) AS ssl_invalid_sites,
+    WHERE cr.ssl_valid = false
+    AND cr.ssl_warning IS NULL
+    AND s.url NOT LIKE 'http://%'
+) AS ssl_invalid_sites,
 
-    COUNT(DISTINCT s.id) FILTER (
-        WHERE cr.ssl_valid IS NULL
-          AND cr.ssl_warning IS NULL
-          AND s.url NOT LIKE 'http://%'
-    ) AS ssl_no_data_sites,
+COUNT(DISTINCT s.id) FILTER (
+    WHERE cr.ssl_valid IS NULL
+    AND cr.ssl_warning IS NULL
+    AND s.url NOT LIKE 'http://%'
+) AS ssl_no_data_sites,
 
-    COUNT(DISTINCT s.id) FILTER (
-        WHERE cr.ssl_valid = true
-          AND cr.ssl_warning IS NULL
-          AND s.url NOT LIKE 'http://%'
-    ) AS ssl_ok_sites,
+COUNT(DISTINCT s.id) FILTER (
+    WHERE cr.ssl_valid = true
+    AND cr.ssl_warning IS NULL
+    AND s.url NOT LIKE 'http://%'
+) AS ssl_ok_sites,
 
     COUNT(DISTINCT s.id) FILTER (
         WHERE (
@@ -101,7 +101,6 @@ LEFT JOIN LATERAL (
     SELECT ssl_warning, ssl_valid
     FROM check_results
     WHERE site_id = s.id
-    AND checked_at >= NOW() - INTERVAL '1 hour'
     ORDER BY checked_at DESC
     LIMIT 1
 ) cr ON true

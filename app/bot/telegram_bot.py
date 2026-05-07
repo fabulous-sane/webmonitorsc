@@ -231,8 +231,19 @@ async def site_details(callback: CallbackQuery):
                 emoji = get_status_emoji(row.status)
                 local_dt = row.checked_at.astimezone(ZoneInfo("Europe/Kyiv"))
                 time_str = local_dt.strftime("%H:%M:%S")
+                ssl_state = resolve_ssl_state(row.ssl_valid, row.ssl_warning, site.url)
+
+                ssl_icon = {
+                    "critical": "🔴",
+                    "warning": "🟡",
+                    "invalid": "❌",
+                    "ok": "🟢",
+                    "http": "🌐",
+                    "no_data": "⚪",
+                }.get(ssl_state, "⚪")
+
                 history_lines.append(
-                    f"{emoji} {time_str} | {row.response_time_ms or '-'} ms"
+                    f"{emoji}{ssl_icon} {time_str} | {row.response_time_ms or '-'} ms"
                 )
 
             history_text = "\n".join(history_lines) if history_lines else "Немає даних"
@@ -240,6 +251,13 @@ async def site_details(callback: CallbackQuery):
             emoji = get_status_emoji(site.last_status) if site.last_status else "⚪"
 
             status = get_status_label(site.last_status)
+
+            health_map = {
+                "critical": "🔴 Критично",
+                "warning": "🟡 Попередження",
+                "ok": "🟢 Нормально",
+                "no_data": "⚪ Немає даних",
+            }
 
             text = (
                 f"{emoji} <b>{escape(site.name)}</b>\n\n"
@@ -254,6 +272,12 @@ async def site_details(callback: CallbackQuery):
                 f"📉 <b>Останні 5 перевірок:</b>\n"
                 f"{history_text}"
             )
+
+            health = data.get("health")
+            if hasattr(health, "value"):
+                health = health.value
+            if health:
+                text += f"\n<b>Стан:</b> {health_map.get(health, health)}"
 
             is_http = (site.url or "").startswith("http://")
             ssl_info = data.get("ssl")
@@ -281,7 +305,7 @@ async def site_details(callback: CallbackQuery):
                 elif ssl_state == "invalid":
                     text += "\n\n❌ <b>SSL:</b> недійсний"
                 elif ssl_state == "ok":
-                    text += "\n\n🟢 <b>SSL:</b> OK"
+                    text += f"\n\n🟢 <b>SSL:</b> OK ({days} днів)"
                 else:
                     text += "\n\n⚪ <b>SSL:</b> немає даних"
 

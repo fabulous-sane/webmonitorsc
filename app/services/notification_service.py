@@ -2,6 +2,8 @@ import logging
 from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.monitoring.status import SiteStatus
 from app.utils.ssl_state import resolve_ssl_state
 from app.monitoring.process_result import NotifyPayload
 from app.repositories.users import UsersRepository
@@ -14,28 +16,28 @@ class NotificationService:
         self._bot = bot
 
     @staticmethod
-    def get_status_label(status: str) -> str:
+    def get_status_label(status: SiteStatus) -> str:
         return {
-            "UP": "Працює",
-            "DOWN": "Недоступний",
-            "TIMEOUT": "Таймаут",
-            "ERROR": "Помилка",
-        }.get(status, status)
+            SiteStatus.UP: "Працює",
+            SiteStatus.DOWN: "Недоступний",
+            SiteStatus.TIMEOUT: "⏱ Таймаут (сервер не відповідає)",
+            SiteStatus.ERROR: "⚠️ Помилка (мережа/запит)",
+        }.get(status, "Невідомо")
 
     @staticmethod
     def _format_status(payload: NotifyPayload) -> str:
-        status_raw = payload.new_status.name
+        status = payload.new_status
 
         emoji = {
-            "UP": "🟢",
-            "DOWN": "🔴",
-            "TIMEOUT": "🟡",
-            "ERROR": "⚠️",
-        }.get(status_raw, "⚪")
+            SiteStatus.UP: "🟢",
+            SiteStatus.DOWN: "🔴",
+            SiteStatus.TIMEOUT: "🟡",
+            SiteStatus.ERROR: "⚠️",
+        }.get(status, "⚪")
 
         if payload.old_status is not None:
-            old_raw = payload.old_status.name
-            new_raw = payload.new_status.name
+            old_raw = payload.old_status
+            new_raw = payload.new_status
 
             old = NotificationService.get_status_label(old_raw)
             new = NotificationService.get_status_label(new_raw)
@@ -60,6 +62,11 @@ class NotificationService:
         if payload.response_time_ms is not None:
             lines.append(f"<b>Response:</b> {payload.response_time_ms} ms")
 
+        if payload.health:
+            lines.append(f"🧠 <b>Health:</b> {payload.health.value.upper()}")
+
+        days = payload.ssl_days_left if payload.ssl_days_left is not None else "?"
+
         ssl_state = resolve_ssl_state(
             payload.ssl_valid,
             payload.ssl_warning,
@@ -75,7 +82,7 @@ class NotificationService:
         elif ssl_state == "invalid":
             lines.append("❌ <b>SSL:</b> недійсний")
         elif ssl_state == "ok":
-            lines.append(f"🟢 <b>SSL:</b> дійсний ({payload.ssl_days_left} днів)")
+            lines.append(f"🟢 <b>SSL:</b> дійсний ({days} днів)")
         else:
             lines.append("⚪ <b>SSL:</b> немає даних")
 

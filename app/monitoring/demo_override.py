@@ -1,10 +1,13 @@
 from app.monitoring.run_check import CheckRawResult
 
-def apply_demo_override(site, raw: CheckRawResult) -> CheckRawResult:
-    demo = None
+def extract_demo_mode(site) -> str | None:
+    if site.name and site.name.startswith("demo:"):
+        return site.name.split("demo:")[1]
+    return None
 
-    if site.name.startswith("demo:"):
-        demo = site.name.split(":", 1)[1]
+
+def apply_demo_override(site, raw: CheckRawResult) -> CheckRawResult:
+    demo = extract_demo_mode(site)
 
     if not demo:
         return raw
@@ -17,10 +20,13 @@ def apply_demo_override(site, raw: CheckRawResult) -> CheckRawResult:
         raw.status_code = None
         raw.error_type = "timeout"
 
+
     elif demo == "ssl_critical":
         raw.ssl_valid = True
         raw.ssl_days_left = 1
         raw.ssl_warning = "critical"
+        raw.ssl_error = None
+        raw.status_code = 200
 
     elif demo == "ssl_warning":
         raw.ssl_valid = True
@@ -30,7 +36,7 @@ def apply_demo_override(site, raw: CheckRawResult) -> CheckRawResult:
     elif demo == "ssl_invalid":
         raw.ssl_valid = False
         raw.ssl_days_left = None
-        raw.ssl_warning = "critical"
+        raw.ssl_warning = None
 
     elif demo == "ssl_ok":
         raw.ssl_valid = True

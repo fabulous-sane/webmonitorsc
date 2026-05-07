@@ -31,7 +31,7 @@ interface Props {
   ssl_severity?: SSLSeverity;
   p95_latency?: number;
   error_rate?: number;
-  health?: "healthy" | "warning" | "critical" | "no_data";
+  health?: "ok" | "warning" | "critical" | "no_data";
   onDeleted?: () => void;
   onReactivated?: () => void;
 }
@@ -86,7 +86,7 @@ const sslState = isHttp
   ? "http"
   : (ssl_state ?? "no_data")
 
-const sslLabel = sslLabels[sslState]
+const sslLabel = sslLabels[sslState] ?? "Немає даних"
 
   useEffect(() => {
     if (!expanded) return;
@@ -203,7 +203,7 @@ archived
 <span className="text-xs font-semibold">
   {health === "critical" && "🔴 Критично"}
   {health === "warning" && "🟡 Попередження"}
-  {health === "healthy" && "🟢 Нормально"}
+  {health === "ok" && "🟢 Нормально"}
   {health === "no_data" && "⚪ Немає даних"}
 </span>
 </div>
@@ -427,11 +427,11 @@ const healthKey = p.health ?? "no_data"
     if (!payload) return false
 
 const colorMap = {
-      critical: "#dc2626",
-      warning: "#f59e0b",
-      healthy: "#16a34a",
-      no_data: "#9ca3af"
-    }
+  critical: "#dc2626",
+  warning: "#f59e0b",
+  ok: "#16a34a",
+  no_data: "#9ca3af"
+}
 
     const healthKey = payload.health ?? "no_data"
 return (

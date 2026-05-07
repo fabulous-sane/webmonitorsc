@@ -9,7 +9,8 @@ from app.monitoring.run_check import CheckRawResult
 from app.repositories.checks import ChecksRepository
 from app.repositories.check_results import CheckResultsRepository
 from app.core.config import settings
-
+from app.monitoring.health_calc import compute_health
+from app.monitoring.health import HealthStatus
 
 @dataclass
 class NotifyPayload:
@@ -24,7 +25,7 @@ class NotifyPayload:
     ssl_warning: str | None = None
     ssl_days_left: int | None = None
     ssl_valid: bool | None = None
-
+    health: HealthStatus | None = None
 
 @dataclass
 class ProcessResult:
@@ -32,6 +33,7 @@ class ProcessResult:
     old_status: SiteStatus | None
     new_status: SiteStatus
     notify_payload: NotifyPayload | None
+
 
 
 async def process_check_result(
@@ -73,6 +75,14 @@ async def process_check_result(
         ssl_warning=raw.ssl_warning,
     )
 
+    ssl_state = resolve_ssl_state(
+        raw.ssl_valid,
+        raw.ssl_warning,
+        site.url,
+    )
+
+    current_health = compute_health(raw_status, ssl_state)
+
     if raw_status in (SiteStatus.DOWN, SiteStatus.ERROR, SiteStatus.TIMEOUT):
         threshold = settings.FLAP_DOWN_THRESHOLD
     else:
@@ -80,18 +90,15 @@ async def process_check_result(
 
     threshold = max(threshold, 1)
 
-    if threshold == 1:
-        http_stable = True
-    else:
-        last_statuses = await checks_repo.get_last_statuses(
-            site_id=site.id,
-            limit=threshold,
-        )
+    last_statuses = await checks_repo.get_last_statuses(
+        site_id=site.id,
+        limit=threshold,
+    )
 
-        http_stable = (
-                len(last_statuses) == threshold
-                and all(s == raw_status for s in last_statuses)
-        )
+    http_stable = (
+            len(last_statuses) == threshold
+            and all(s == raw_status for s in last_statuses)
+    )
 
     old_status = site.last_status
     new_status = raw_status if http_stable else (old_status or raw_status)
@@ -105,41 +112,34 @@ async def process_check_result(
 
     if not site.url.startswith("http://"):
 
-        curr_state = resolve_ssl_state(
-            raw.ssl_valid,
-            raw.ssl_warning,
-            site.url,
-        )
+        last_rows = await results_repo.get_last_ssl_states(site.id, limit=10)
 
-        last_rows = await results_repo.get_last_ssl_states(site.id, limit=5)
+        states = [ssl_state] + [
+            resolve_ssl_state(v, w, site.url)
+            for v, w in last_rows
+        ]
 
-        prev_state = None
-        if last_rows:
-            prev_valid, prev_warning = last_rows[0]
-            prev_state = resolve_ssl_state(prev_valid, prev_warning, site.url)
-
-        if curr_state in ("critical", "invalid"):
+        if ssl_state in ("critical", "invalid"):
             threshold = settings.FLAP_DOWN_THRESHOLD
         else:
             threshold = settings.FLAP_UP_THRESHOLD
 
-        states = [
-            curr_state,
-            *[
-                resolve_ssl_state(v, w, site.url)
-                for v, w in last_rows
-            ]
-        ]
+        threshold = max(threshold, 1)
 
         stable = (
                 len(states) >= threshold
-                and all(s == curr_state for s in states[:threshold])
+                and all(s == ssl_state for s in states[:threshold])
         )
+
+        prev_state = None
+        if len(last_rows) > 0:
+            prev_valid, prev_warning = last_rows[0]
+            prev_state = resolve_ssl_state(prev_valid, prev_warning, site.url)
 
         ssl_changed = (
                 stable
                 and prev_state is not None
-                and curr_state != prev_state
+                and prev_state != ssl_state
         )
 
     notify_payload = None
@@ -156,7 +156,9 @@ async def process_check_result(
             ssl_warning=raw.ssl_warning,
             ssl_days_left=raw.ssl_days_left,
             ssl_valid=raw.ssl_valid,
+            health=current_health,
         )
+
 
     elif ssl_changed:
         notify_payload = NotifyPayload(
@@ -170,6 +172,7 @@ async def process_check_result(
             ssl_warning=raw.ssl_warning,
             ssl_days_left=raw.ssl_days_left,
             ssl_valid=raw.ssl_valid,
+            health=current_health
         )
 
     return ProcessResult(

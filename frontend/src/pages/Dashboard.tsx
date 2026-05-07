@@ -84,9 +84,10 @@ const [systemData, setSystemData] = useState<SystemStatus | null>(null)
 if (loading) return <div className="p-10">Завантаження...</div>;
 
 const filteredSites = sites.filter(s => {
-  const state: SSLState = s.url.startsWith("http://")
-  ? "http"
-  : (s.ssl_state ?? "no_data")
+const state: SSLState =
+  s.url.startsWith("http://")
+    ? "http"
+    : (s.ssl_state || "no_data")
   const mapped = sslFilterMap[sslFilter]
   // activity
   if (activityFilter === "АКТИВНІ" && !s.is_active) return false
@@ -106,7 +107,7 @@ if (
   // health
   if (healthFilter === "CRITICAL" && s.health !== "critical") return false
   if (healthFilter === "WARNING" && s.health !== "warning") return false
-  if (healthFilter === "HEALTHY" && s.health !== "healthy") return false
+  if (healthFilter === "HEALTHY" && s.health !== "ok") return false
 
   // ssl
   if (mapped && state !== mapped) return false

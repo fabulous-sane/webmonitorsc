@@ -4,37 +4,8 @@ from uuid import UUID
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-def compute_health(status, ssl_severity, error_rate, latency):
-
-    if status == "ERROR":
-        return "critical"
-
-    if status == "TIMEOUT":
-        return "warning"
-
-    if not status:
-        return "no_data"
-
-    if error_rate is not None and error_rate > 10:
-        return "critical"
-
-    if latency is not None and latency > 1200:
-        return "critical"
-
-    if ssl_severity == "bad":
-        return "critical"
-
-    if ssl_severity == "warn":
-        return "warning"
-
-    if error_rate is not None and error_rate > 2:
-        return "warning"
-
-    if latency is not None and latency > 600:
-        return "warning"
-
-    return "healthy"
+from app.monitoring.health_calc import compute_health
+from app.utils.ssl_state import resolve_ssl_state
 
 async def get_overview(
     session: AsyncSession,
@@ -55,24 +26,6 @@ SELECT
     cr.ssl_days_left,
     cr.ssl_warning,
     cr.ssl_expires_at,
-
-    CASE
-  WHEN s.url LIKE 'http://%' THEN 'http'
-  WHEN cr.ssl_warning = 'critical' THEN 'critical'
-  WHEN cr.ssl_warning = 'warning' THEN 'warning'
-  WHEN cr.ssl_valid = false THEN 'invalid'
-  WHEN cr.ssl_valid = true THEN 'ok'
-  ELSE 'no_data'
-END AS ssl_state,
-
-CASE
-  WHEN s.url LIKE 'http://%' THEN 'warn'
-  WHEN cr.ssl_warning = 'critical' THEN 'bad'
-  WHEN cr.ssl_valid = false THEN 'bad'
-  WHEN cr.ssl_warning = 'warning' THEN 'warn'
-  WHEN cr.ssl_valid = true THEN 'good'
-  ELSE 'warn'
-END AS ssl_severity,
 
     COALESCE(stats_24.uptime_24h, 0) AS uptime_24h,
     COALESCE(stats_7.uptime_7d, 0) AS uptime_7d,
@@ -136,12 +89,15 @@ ORDER BY s.created_at DESC;
     rows = [dict(r) for r in result.mappings().all()]
 
     for r in rows:
-        latency = r.get("p95_latency")
+        ssl_state = resolve_ssl_state(
+            r.get("ssl_valid"),
+            r.get("ssl_warning"),
+            r.get("url"),
+        )
+
         r["health"] = compute_health(
             r.get("last_status"),
-            r.get("ssl_severity"),
-            r.get("error_rate"),
-            latency if latency is not None else None,
+            ssl_state,
         )
 
     return rows
@@ -172,27 +128,10 @@ SELECT
   BOOL_OR(cr.ssl_valid) AS ssl_valid,
   MIN(cr.ssl_days_left) AS ssl_days_left,
   MAX(cr.ssl_warning) AS ssl_warning,
+  MAX(s.url) AS url,
   (
 ARRAY_AGG(cr.status::text ORDER BY cr.checked_at DESC)
-)[1] AS status,
-
-CASE
-  WHEN MAX(s.url) LIKE 'http://%' THEN 'http'
-  WHEN MAX(cr.ssl_warning) = 'critical' THEN 'critical'
-  WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warning'
-  WHEN BOOL_OR(cr.ssl_valid = false) THEN 'invalid'
-  WHEN BOOL_OR(cr.ssl_valid = true) THEN 'ok'
-  ELSE 'no_data'
-END AS ssl_state,
-
-CASE
-  WHEN MAX(s.url) LIKE 'http://%' THEN 'warn'
-  WHEN MAX(cr.ssl_warning) = 'critical' THEN 'bad'
-  WHEN BOOL_OR(cr.ssl_valid = false) THEN 'bad'
-  WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warn'
-  WHEN BOOL_OR(cr.ssl_valid = true) THEN 'good'
-  ELSE 'warn'
-END AS ssl_severity
+)[1] AS status
 
 FROM check_results cr
 JOIN sites s ON s.id = cr.site_id
@@ -218,11 +157,15 @@ ORDER BY checked_at ASC
     rows = [dict(row) for row in result.mappings().all()]
 
     for r in rows:
+        ssl_state = resolve_ssl_state(
+            r.get("ssl_valid"),
+            r.get("ssl_warning"),
+            r.get("url"),
+        )
+
         r["health"] = compute_health(
             r.get("status"),
-            r.get("ssl_severity"),
-            None,
-            r.get("avg_response_time_ms"),
+            ssl_state,
         )
 
     return rows

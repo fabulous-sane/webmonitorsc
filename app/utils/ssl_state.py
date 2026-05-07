@@ -1,6 +1,6 @@
 def resolve_ssl_state(ssl_valid, ssl_warning, url: str) -> str:
     if url.startswith("http://"):
-        return "http"
+        return "no_ssl"
 
     if ssl_warning == "critical":
         return "critical"
