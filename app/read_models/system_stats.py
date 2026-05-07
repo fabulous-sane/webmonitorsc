@@ -21,7 +21,7 @@ SELECT
 FROM sites s
 
 LEFT JOIN LATERAL (
-    SELECT status, ssl_valid, ssl_warning, checked_at, ssl_error
+    SELECT status, ssl_valid, ssl_warning, checked_at
     FROM check_results
     WHERE site_id = s.id
     ORDER BY checked_at DESC
