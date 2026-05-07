@@ -99,7 +99,7 @@ ORDER BY s.created_at DESC;
 
         r["ssl_state"] = ssl_state
 
-        status_str = r.get("last_status")
+        status_str = r.get("status")
 
         status = None
         if status_str:
@@ -138,7 +138,11 @@ async def get_site_checks(
 SELECT
   date_trunc('minute', cr.checked_at) AS checked_at,
   AVG(cr.response_time_ms)::float AS avg_response_time_ms,
-  BOOL_AND(cr.ssl_valid) AS ssl_valid,
+  CASE
+  WHEN BOOL_OR(cr.ssl_valid = false) THEN false
+  WHEN BOOL_OR(cr.ssl_valid = true) THEN true
+  ELSE NULL
+END AS ssl_valid
   MIN(cr.ssl_days_left) AS ssl_days_left,
   MAX(cr.ssl_warning) AS ssl_warning,
   MAX(s.url) AS url,
@@ -178,7 +182,7 @@ ORDER BY checked_at ASC
 
         r["ssl_state"] = ssl_state
 
-        status_str = r.get("last_status")
+        status_str = r.get("status")
 
         status = None
         if status_str:
