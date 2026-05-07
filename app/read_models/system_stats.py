@@ -67,7 +67,9 @@ WHERE s.user_id = :user_id
             url,
         )
 
-        health = compute_health(status, ssl_state)
+        status_str = r["status"]
+
+        health = compute_health(status_str, ssl_state)
 
         if url.startswith("http://"):
             stats["ssl_no_ssl_sites"] += 1

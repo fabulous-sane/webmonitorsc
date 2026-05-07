@@ -90,20 +90,12 @@ async def process_check_result(
 
     threshold = max(threshold, 1)
 
-    last_statuses = await checks_repo.get_last_statuses(
-        site_id=site.id,
-        limit=threshold,
-    )
-
-    http_stable = (
-            len(last_statuses) == threshold
-            and all(s == raw_status for s in last_statuses)
-    )
-
     old_status = site.last_status
-    new_status = raw_status if http_stable else (old_status or raw_status)
+    new_status = raw_status
 
     status_changed = new_status != old_status
+
+    site.last_status = new_status
 
     if status_changed:
         site.last_status = new_status
