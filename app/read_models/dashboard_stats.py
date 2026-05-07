@@ -99,7 +99,7 @@ ORDER BY s.created_at DESC;
 
         r["ssl_state"] = ssl_state
 
-        status_str = r.get("status")
+        status_str = r.get("last_status")
 
         r["health"] = compute_health(
             status_str,
