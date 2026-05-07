@@ -55,7 +55,6 @@ WHERE s.user_id = :user_id
         status = r["status"]
         ssl_valid = r["ssl_valid"]
         ssl_warning = r["ssl_warning"]
-        ssl_error = r["ssl_error"]
 
         if is_active:
             stats["active_sites"] += 1
