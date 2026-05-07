@@ -16,12 +16,13 @@ SELECT
     cr.status,
     cr.ssl_valid,
     cr.ssl_warning,
+    cr.ssl_error,
     cr.checked_at
 
 FROM sites s
 
 LEFT JOIN LATERAL (
-    SELECT status, ssl_valid, ssl_warning, checked_at
+    SELECT status, ssl_valid, ssl_warning, checked_at, ssl_error
     FROM check_results
     WHERE site_id = s.id
     ORDER BY checked_at DESC
@@ -52,7 +53,6 @@ WHERE s.user_id = :user_id
         is_active = r["is_active"]
         url = r["url"]
 
-        status = r["status"]
         ssl_valid = r["ssl_valid"]
         ssl_warning = r["ssl_warning"]
 
@@ -65,20 +65,27 @@ WHERE s.user_id = :user_id
             ssl_valid,
             ssl_warning,
             url,
+            r.get("ssl_error"),
         )
 
-        status_str = r["status"]
+        status = r.get("status")
 
-        health = compute_health(status_str, ssl_state)
+        if status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
+            status = None
+
+        health = compute_health(status, ssl_state)
 
         if url.startswith("http://"):
             stats["ssl_no_ssl_sites"] += 1
+            continue
         elif ssl_state == "critical":
             stats["ssl_critical_sites"] += 1
         elif ssl_state == "warning":
             stats["ssl_warning_sites"] += 1
         elif ssl_state == "invalid":
             stats["ssl_invalid_sites"] += 1
+        elif ssl_state == "no_data":
+            stats["ssl_no_data_sites"] += 1
         elif ssl_state == "ok":
             stats["ssl_ok_sites"] += 1
         else:
@@ -97,11 +104,11 @@ WHERE s.user_id = :user_id
     COUNT(*) FILTER (WHERE ssl_warning = 'critical') AS ssl_critical_events,
     COUNT(*) FILTER (WHERE ssl_warning = 'warning') AS ssl_warning_events,
 
-    COUNT(*) FILTER (
-        WHERE ssl_valid = false
-        AND ssl_error IS DISTINCT FROM 'timeout'
-        AND s.url NOT LIKE 'http://%'
-    ) AS ssl_invalid_events,
+    COUNT(DISTINCT site_id) FILTER (
+    WHERE ssl_valid = false
+    AND ssl_error = 'cert_invalid'
+    AND s.url NOT LIKE 'http://%'
+) AS ssl_invalid_events,
 
     COUNT(*) FILTER (
         WHERE ssl_valid IS NULL
@@ -113,7 +120,11 @@ FROM check_results cr
 JOIN sites s ON s.id = cr.site_id
 
 WHERE s.user_id = :user_id
-AND cr.checked_at >= NOW() - INTERVAL '24 hours'
+AND s.is_active = true
+AND cr.checked_at >= (
+    DATE_TRUNC('day', NOW() AT TIME ZONE 'UTC')
+    AT TIME ZONE 'Europe/Kyiv'
+)
     """)
 
     events = await session.execute(events_stmt, {"user_id": user_id})

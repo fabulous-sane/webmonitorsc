@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from uuid import UUID
-
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.ssl_state import resolve_ssl_state
 from app.models.site import Site
@@ -9,8 +9,8 @@ from app.monitoring.run_check import CheckRawResult
 from app.repositories.checks import ChecksRepository
 from app.repositories.check_results import CheckResultsRepository
 from app.core.config import settings
-from app.monitoring.health_calc import compute_health
 from app.monitoring.health import HealthStatus
+from app.monitoring.health_calc import compute_health
 
 @dataclass
 class NotifyPayload:
@@ -25,6 +25,7 @@ class NotifyPayload:
     ssl_warning: str | None = None
     ssl_days_left: int | None = None
     ssl_valid: bool | None = None
+    ssl_error: str | None = None
     health: HealthStatus | None = None
 
 @dataclass
@@ -33,8 +34,6 @@ class ProcessResult:
     old_status: SiteStatus | None
     new_status: SiteStatus
     notify_payload: NotifyPayload | None
-
-
 
 async def process_check_result(
     *,
@@ -50,7 +49,6 @@ async def process_check_result(
     if raw.error_type in policy_errors:
         return ProcessResult(False, site.last_status, site.last_status, None)
 
-    # --- 1. MAP STATUS ---
     if raw.error_type == "timeout":
         raw_status = SiteStatus.TIMEOUT
     elif raw.error_type in ("connection_error", "request_error"):
@@ -73,15 +71,16 @@ async def process_check_result(
         ssl_expires_at=raw.ssl_expires_at,
         ssl_days_left=raw.ssl_days_left,
         ssl_warning=raw.ssl_warning,
+        ssl_error=raw.ssl_error,
+
     )
 
     ssl_state = resolve_ssl_state(
         raw.ssl_valid,
         raw.ssl_warning,
         site.url,
+        raw.ssl_error,
     )
-
-    current_health = compute_health(raw_status, ssl_state)
 
     if raw_status in (SiteStatus.DOWN, SiteStatus.ERROR, SiteStatus.TIMEOUT):
         threshold = settings.FLAP_DOWN_THRESHOLD
@@ -90,52 +89,84 @@ async def process_check_result(
 
     threshold = max(threshold, 1)
 
+    last_statuses = await checks_repo.get_last_statuses(
+        site_id=site.id,
+        limit = max(threshold - 1, 0),
+    )
+
+    statuses = [raw_status] + last_statuses
+
+    http_stable = (
+            len(statuses) >= threshold
+            and all(s == raw_status for s in statuses[:threshold])
+    )
+
     old_status = site.last_status
-    new_status = raw_status
+    if http_stable:
+        new_status = raw_status
+    else:
+        new_status = old_status
+
+    if new_status is None:
+        new_status = raw_status
+        http_stable = True
 
     status_changed = new_status != old_status
 
-    site.last_status = new_status
+    if status_changed:
+        site.last_status = new_status
 
     ssl_changed = False
 
     if not site.url.startswith("http://"):
 
-        last_rows = await results_repo.get_last_ssl_states(site.id, limit=3)
+        ssl_threshold = (
+            settings.FLAP_DOWN_THRESHOLD
+            if ssl_state in ("critical", "invalid")
+            else settings.FLAP_UP_THRESHOLD
+        )
+
+        ssl_threshold = max(ssl_threshold, 1)
+
+        last_rows = await results_repo.get_last_ssl_states(
+            site.id,
+            limit=ssl_threshold,
+        )
 
         states = [
-            resolve_ssl_state(v, w, site.url)
-            for v, w in last_rows
-        ]
-
-        if ssl_state in ("critical", "invalid"):
-            threshold = settings.FLAP_DOWN_THRESHOLD
-        else:
-            threshold = settings.FLAP_UP_THRESHOLD
-
-        states = states[:threshold]
-
-        threshold = max(threshold, 1)
+            resolve_ssl_state(v, w, site.url, e)
+            for v, w, e in last_rows
+        ][:ssl_threshold]
 
         stable = (
-                len(states) >= threshold
-                and all(s == ssl_state for s in states[:threshold])
+                len(states) >= ssl_threshold
+                and all(s == ssl_state for s in states)
         )
 
         prev_state = None
         if len(last_rows) > 0:
-            prev_valid, prev_warning = last_rows[0]
-            prev_state = resolve_ssl_state(prev_valid, prev_warning, site.url)
+            prev_valid, prev_warning, prev_error = last_rows[0]
+
+            prev_state = resolve_ssl_state(
+                prev_valid,
+                prev_warning,
+                site.url,
+                prev_error,
+            )
+
+        problem_states = {"critical", "warning", "invalid"}
 
         ssl_changed = (
                 stable
                 and prev_state is not None
                 and prev_state != ssl_state
+                and ssl_state in problem_states
         )
 
     notify_payload = None
 
-    if status_changed:
+
+    if status_changed or ssl_changed:
         notify_payload = NotifyPayload(
             site_id=site.id,
             site_name=site.name,
@@ -147,24 +178,12 @@ async def process_check_result(
             ssl_warning=raw.ssl_warning,
             ssl_days_left=raw.ssl_days_left,
             ssl_valid=raw.ssl_valid,
-            health=current_health,
+            ssl_error=raw.ssl_error,
+            health=compute_health(new_status, ssl_state)
         )
 
-
-    elif ssl_changed:
-        notify_payload = NotifyPayload(
-            site_id=site.id,
-            site_name=site.name,
-            url=site.url,
-            old_status=None,
-            new_status=new_status,
-            status_code=raw.status_code,
-            response_time_ms=raw.response_time_ms,
-            ssl_warning=raw.ssl_warning,
-            ssl_days_left=raw.ssl_days_left,
-            ssl_valid=raw.ssl_valid,
-            health=current_health
-        )
+    site.last_checked_at = datetime.now(timezone.utc)
+    await session.commit()
 
     return ProcessResult(
         status_changed=status_changed,
@@ -172,3 +191,4 @@ async def process_check_result(
         new_status=new_status,
         notify_payload=notify_payload,
     )
+

@@ -272,6 +272,7 @@ async def site_details(callback: CallbackQuery):
                 ssl_info.get("ssl_valid"),
                 ssl_info.get("ssl_warning"),
                 site.url,
+                ssl_info.get("ssl_error"),
             )
 
             days = (

@@ -83,7 +83,7 @@ async def _safe_ssl(host: str | None, scheme: str):
             "ssl_expires_at": None,
             "ssl_days_left": None,
             "ssl_warning": None,
-            "ssl_error": None,
+            "ssl_error": "no_ssl",
         }
 
     return await get_ssl_info(host)
@@ -95,7 +95,20 @@ async def run_check(url: str) -> CheckRawResult:
         return CheckRawResult(False, None, None, "invalid_scheme")
 
     if await _is_private_host(parsed.hostname):
-        return CheckRawResult(False, None, None, "blocked_private_ip")
+        ssl_data = await _safe_ssl(parsed.hostname, parsed.scheme)
+        ssl_valid, ssl_expires_at, ssl_days_left, ssl_error, ssl_warning = _map_ssl(ssl_data)
+
+        return CheckRawResult(
+            False,
+            None,
+            None,
+            "blocked_private_ip",
+            ssl_valid,
+            ssl_expires_at,
+            ssl_days_left,
+            ssl_error,
+            ssl_warning,
+        )
 
     for attempt in range(settings.RETRY_COUNT):
         try:

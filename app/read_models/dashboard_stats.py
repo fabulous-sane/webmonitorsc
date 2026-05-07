@@ -39,12 +39,13 @@ FROM sites s
 
 LEFT JOIN LATERAL (
     SELECT
-        checked_at,
-        status,
-        ssl_valid,
-        ssl_days_left,
-        ssl_warning,
-        ssl_expires_at
+    checked_at,
+    status,
+    ssl_valid,
+    ssl_days_left,
+    ssl_warning,
+    ssl_error,
+    ssl_expires_at
     FROM check_results
     WHERE check_results.site_id = s.id
     ORDER BY checked_at DESC
@@ -64,7 +65,7 @@ LEFT JOIN LATERAL (
 
     FROM check_results
     WHERE site_id = s.id
-      AND checked_at >= now() - interval '24 hours'
+      AND checked_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'Europe/Kyiv'
 ) stats_24 ON true
 
 LEFT JOIN (
@@ -91,20 +92,22 @@ ORDER BY s.created_at DESC;
     rows = [dict(r) for r in result.mappings().all()]
 
     for r in rows:
+        status = r.get("last_status")
+
+        if not status or status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
+            r["health"] = "no_data"
+            r["ssl_state"] = "no_data"
+            continue
+
         ssl_state = resolve_ssl_state(
             r.get("ssl_valid"),
             r.get("ssl_warning"),
             r.get("url"),
+            r.get("ssl_error"),
         )
 
         r["ssl_state"] = ssl_state
-
-        status_str = r.get("last_status")
-
-        r["health"] = compute_health(
-            status_str,
-            ssl_state,
-        ) or "no_data"
+        r["health"] = compute_health(status, ssl_state) or "no_data"
 
     return rows
 
@@ -130,7 +133,7 @@ async def get_site_checks(
     stmt = text("""
     SELECT
       date_trunc('minute', cr.checked_at) AS checked_at,
-      AVG(cr.response_time_ms)::float AS avg_response_time_ms,
+      AVG(cr.response_time_ms) FILTER (WHERE cr.response_time_ms IS NOT NULL),
 
       CASE
         WHEN BOOL_OR(cr.ssl_valid = false) THEN false
@@ -140,6 +143,9 @@ async def get_site_checks(
 
       MIN(cr.ssl_days_left) AS ssl_days_left,
       MAX(cr.ssl_warning) AS ssl_warning,
+      (
+  ARRAY_AGG(cr.ssl_error ORDER BY cr.checked_at DESC)
+)[1] AS ssl_error,
       MAX(s.url) AS url,
 
       (
@@ -170,18 +176,28 @@ async def get_site_checks(
     rows = [dict(row) for row in result.mappings().all()]
 
     for r in rows:
+        status = r.get("status")
+
+        if status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
+            r["health"] = "no_data"
+            r["ssl_state"] = "no_data"
+            continue
         ssl_state = resolve_ssl_state(
             r.get("ssl_valid"),
             r.get("ssl_warning"),
             r.get("url"),
+            r.get("ssl_error"),
         )
 
         r["ssl_state"] = ssl_state
 
-        status_str = r.get("status")
+        status = r.get("status")
+
+        if status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
+            status = None
 
         r["health"] = compute_health(
-            status_str,
+            status,
             ssl_state,
         ) or "no_data"
 

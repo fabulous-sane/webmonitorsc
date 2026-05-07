@@ -264,16 +264,30 @@ class SiteService:
         uptime_7d = await results_repo.get_uptime_percent(site_id=site.id, hours=168)
         uptime_30d = await results_repo.get_uptime_percent(site_id=site.id, hours=720)
 
-        last_checks = await results_repo.get_last_checks(site_id=site.id, limit=5)
         ssl = await results_repo.get_latest_ssl(site_id=site.id)
 
         ssl_state = resolve_ssl_state(
             ssl.get("ssl_valid") if ssl else None,
             ssl.get("ssl_warning") if ssl else None,
             site.url,
+            ssl.get("ssl_error") if ssl else None,
         )
 
-        health = compute_health(site.last_status, ssl_state)
+        last_checks = await results_repo.get_last_checks(site_id=site.id, limit=5)
+
+        latest_status = None
+
+        if last_checks:
+            latest = last_checks[0]
+
+            if latest and latest.status:
+                latest_status = site.last_status or (latest.status if latest else None)
+        status = site.last_status
+
+        if status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
+            status = None
+
+        health = compute_health(latest_status, ssl_state)
 
         enriched_checks = []
         for row in last_checks:
@@ -281,6 +295,7 @@ class SiteService:
                 getattr(row, "ssl_valid", None),
                 getattr(row, "ssl_warning", None),
                 site.url,
+                getattr(row, "ssl_error", None),
             )
 
             row_health = compute_health(row.status, row_ssl_state)

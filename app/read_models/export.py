@@ -16,7 +16,9 @@ async def get_checks_for_export(
     now = datetime.now(timezone.utc)
 
     if range == "24h":
-        cutoff = now - timedelta(hours=24)
+        cutoff = datetime.now(timezone.utc).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
     elif range == "7d":
         cutoff = now - timedelta(days=7)
     elif range == "30d":
@@ -27,7 +29,7 @@ async def get_checks_for_export(
     stmt = text("""
 SELECT
   date_trunc('minute', cr.checked_at) AS checked_at,
-  AVG(cr.response_time_ms)::float AS avg_response_time_ms,
+  AVG(cr.response_time_ms) FILTER (WHERE cr.response_time_ms IS NOT NULL),
 (
 ARRAY_AGG(cr.status::text ORDER BY cr.checked_at DESC)
 )[1] AS status,
@@ -35,26 +37,14 @@ ARRAY_AGG(cr.status::text ORDER BY cr.checked_at DESC)
 (
 ARRAY_AGG(cr.status_code ORDER BY cr.checked_at DESC)
 )[1] AS status_code,
-  BOOL_OR(cr.ssl_valid) AS ssl_valid,
-  MIN(cr.ssl_days_left) AS ssl_days_left,
-  MAX(cr.ssl_warning) AS ssl_warning,
-
-  CASE
-  WHEN BOOL_OR(s.url LIKE 'http://%') THEN 'http'
-  WHEN MAX(cr.ssl_warning) = 'critical' THEN 'critical'
-  WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warning'
-  WHEN BOOL_OR(cr.ssl_valid = false) THEN 'invalid'
-  WHEN BOOL_OR(cr.ssl_valid = true) THEN 'ok'
-  ELSE 'no_data'
-END AS ssl_state,
-
+MIN(cr.ssl_days_left) AS ssl_days_left,
+MAX(cr.ssl_warning) AS ssl_warning,
+MAX(cr.ssl_error) AS ssl_error,
 CASE
-  WHEN MAX(cr.ssl_warning) = 'critical' THEN 'bad'
-  WHEN BOOL_OR(cr.ssl_valid) = false THEN 'bad'
-  WHEN MAX(cr.ssl_warning) = 'warning' THEN 'warn'
-  WHEN BOOL_OR(cr.ssl_valid) = true THEN 'good'
-  ELSE 'warn'
-END AS ssl_severity
+  WHEN BOOL_OR(cr.ssl_valid = false) THEN false
+  WHEN BOOL_OR(cr.ssl_valid = true) THEN true
+  ELSE NULL
+END AS ssl_valid
 
 FROM check_results cr
 JOIN sites s ON s.id = cr.site_id

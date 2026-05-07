@@ -1,8 +1,9 @@
 from app.monitoring.health import HealthStatus
+from app.monitoring.status import SiteStatus
 
-def compute_health(http_status, ssl_state: str) -> HealthStatus:
 
-    if hasattr(http_status, "value"):
+def compute_health(http_status: SiteStatus | str | None, ssl_state: str) -> HealthStatus:
+    if isinstance(http_status, SiteStatus):
         http_status = http_status.value
 
     if http_status in ("DOWN", "ERROR"):

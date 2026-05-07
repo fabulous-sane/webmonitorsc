@@ -76,7 +76,11 @@ class CheckResultsRepository:
 
     async def get_last_ssl_states(self, site_id: uuid.UUID, limit: int = 3):
         stmt = (
-            select(CheckResult.ssl_valid, CheckResult.ssl_warning)
+            select(
+                CheckResult.ssl_valid,
+                CheckResult.ssl_warning,
+                CheckResult.ssl_error,
+            )
             .where(CheckResult.site_id == site_id)
             .order_by(CheckResult.checked_at.desc())
             .limit(limit)
@@ -94,6 +98,7 @@ class CheckResultsRepository:
                 CheckResult.ssl_valid,
                 CheckResult.ssl_days_left,
                 CheckResult.ssl_warning,
+                CheckResult.ssl_error,
             )
             .where(CheckResult.site_id == site_id)
             .order_by(CheckResult.checked_at.desc())
@@ -110,5 +115,6 @@ class CheckResultsRepository:
             "ssl_valid": row[0],
             "ssl_days_left": row[1],
             "ssl_warning": row[2],
+            "ssl_error": row[3],
         }
 

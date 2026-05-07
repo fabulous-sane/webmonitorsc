@@ -8,6 +8,9 @@ def resolve_ssl_state(
     if url.startswith("http://"):
         return "http"
 
+    if ssl_error == "no_ssl":
+        return "http"
+
     if ssl_error == "timeout":
         return "no_data"
 
@@ -16,6 +19,12 @@ def resolve_ssl_state(
 
     if ssl_warning == "warning":
         return "warning"
+
+    if ssl_error == "cert_invalid":
+        return "invalid"
+
+    if ssl_error in ("handshake_error", "timeout", "unknown"):
+        return "no_data"
 
     if ssl_valid is False:
         return "invalid"
