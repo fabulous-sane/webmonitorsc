@@ -16,7 +16,7 @@ SELECT
     cr.status,
     cr.ssl_valid,
     cr.ssl_warning,
-    cr.checked_at,
+    cr.checked_at
 
 FROM sites s
 
