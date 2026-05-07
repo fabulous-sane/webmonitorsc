@@ -128,7 +128,7 @@ async def get_site_checks(
 SELECT
   date_trunc('minute', cr.checked_at) AS checked_at,
   AVG(cr.response_time_ms)::float AS avg_response_time_ms,
-  MIN(cr.ssl_valid) AS ssl_valid,
+  BOOL_AND(cr.ssl_valid) AS ssl_valid,
   MIN(cr.ssl_days_left) AS ssl_days_left,
   MAX(cr.ssl_warning) AS ssl_warning,
   MAX(s.url) AS url,
