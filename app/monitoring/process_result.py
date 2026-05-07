@@ -97,9 +97,6 @@ async def process_check_result(
 
     site.last_status = new_status
 
-    if status_changed:
-        site.last_status = new_status
-
     ssl_changed = False
 
     if not site.url.startswith("http://"):

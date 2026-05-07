@@ -10,6 +10,8 @@ from app.services.exceptions import (
     SiteAlreadyExists,
     SiteNotFound,
 )
+from app.monitoring.health_calc import compute_health
+from app.utils.ssl_state import resolve_ssl_state
 
 class SiteService:
     def __init__(
@@ -261,13 +263,36 @@ class SiteService:
         uptime_24 = await results_repo.get_uptime_percent(site_id=site.id, hours=24)
         uptime_7d = await results_repo.get_uptime_percent(site_id=site.id, hours=168)
         uptime_30d = await results_repo.get_uptime_percent(site_id=site.id, hours=720)
+
         last_checks = await results_repo.get_last_checks(site_id=site.id, limit=5)
         ssl = await results_repo.get_latest_ssl(site_id=site.id)
+
+        ssl_state = resolve_ssl_state(
+            ssl.get("ssl_valid") if ssl else None,
+            ssl.get("ssl_warning") if ssl else None,
+            site.url,
+        )
+
+        health = compute_health(site.last_status, ssl_state)
+
+        enriched_checks = []
+        for row in last_checks:
+            row_ssl_state = resolve_ssl_state(
+                getattr(row, "ssl_valid", None),
+                getattr(row, "ssl_warning", None),
+                site.url,
+            )
+
+            row_health = compute_health(row.status, row_ssl_state)
+
+            row.health = row_health
+            enriched_checks.append(row)
 
         return site, {
             "uptime_24": uptime_24,
             "uptime_7d": uptime_7d,
             "uptime_30d": uptime_30d,
-            "last_checks": last_checks,
-            "ssl": ssl
+            "last_checks": enriched_checks,
+            "ssl": ssl,
+            "health": health,
         }
