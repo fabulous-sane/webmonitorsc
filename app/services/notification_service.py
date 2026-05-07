@@ -26,7 +26,7 @@ class NotificationService:
         health = normalize_health(payload.health) or "no_data"
         emoji, label = HEALTH_META.get(health, ("⚪", "Невідомо"))
 
-        is_http_change = payload.old_status is not None and payload.ssl_warning is None
+        is_http_change = payload.old_status is not None
 
         if is_http_change:
             lines = [
@@ -81,6 +81,10 @@ class NotificationService:
         session: AsyncSession,
     ) -> None:
         message = self._format_status(payload)
+
+        if not message or not message.strip():
+            logger.warning("Skip empty notification (site_id=%s)", payload.site_id)
+            return
 
         if self._bot is None:
             logger.warning("Bot not initialized (chat_id=%s)", chat_id)

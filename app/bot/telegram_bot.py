@@ -60,6 +60,11 @@ def ascii_bar(percent: float, width: int = 10) -> str:
 async def safe_send(chat_id: int, text: str, reply_markup=None):
     if not bot:
         return
+
+    if not text or not text.strip():
+        logger.warning("Skip empty telegram message (chat_id=%s)", chat_id)
+        return
+
     try:
         await bot.send_message(
             chat_id=chat_id,
