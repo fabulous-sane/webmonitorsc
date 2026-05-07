@@ -6,6 +6,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.monitoring.health_calc import compute_health
 from app.utils.ssl_state import resolve_ssl_state
+from app.monitoring.status import SiteStatus
 
 async def get_overview(
     session: AsyncSession,
@@ -99,7 +100,7 @@ ORDER BY s.created_at DESC;
         r["ssl_state"] = ssl_state
 
         r["health"] = compute_health(
-            r.get("last_status"),
+            r.get("status"),
             ssl_state,
         ) or "no_data"
 
@@ -169,7 +170,7 @@ ORDER BY checked_at ASC
         r["ssl_state"] = ssl_state
 
         r["health"] = compute_health(
-            r.get("last_status"),
+            r.get("status"),
             ssl_state,
         ) or "no_data"
 
