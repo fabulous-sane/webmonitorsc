@@ -99,8 +99,17 @@ ORDER BY s.created_at DESC;
 
         r["ssl_state"] = ssl_state
 
+        status_str = r.get("last_status")
+
+        status = None
+        if status_str:
+            try:
+                status = SiteStatus(status_str)
+            except ValueError:
+                status = None
+
         r["health"] = compute_health(
-            r.get("status"),
+            status,
             ssl_state,
         ) or "no_data"
 
@@ -169,8 +178,17 @@ ORDER BY checked_at ASC
 
         r["ssl_state"] = ssl_state
 
+        status_str = r.get("last_status")
+
+        status = None
+        if status_str:
+            try:
+                status = SiteStatus(status_str)
+            except ValueError:
+                status = None
+
         r["health"] = compute_health(
-            r.get("status"),
+            status,
             ssl_state,
         ) or "no_data"
 
