@@ -79,6 +79,7 @@ async def process_check_result(
         raw.ssl_valid,
         raw.ssl_warning,
         site.url,
+        ssl_error=raw.ssl_error,
     )
 
     current_health = compute_health(raw_status, ssl_state)
@@ -112,9 +113,9 @@ async def process_check_result(
 
     if not site.url.startswith("http://"):
 
-        last_rows = await results_repo.get_last_ssl_states(site.id, limit=10)
+        last_rows = await results_repo.get_last_ssl_states(site.id, limit=3)
 
-        states = [ssl_state] + [
+        states = [
             resolve_ssl_state(v, w, site.url)
             for v, w in last_rows
         ]
@@ -123,6 +124,8 @@ async def process_check_result(
             threshold = settings.FLAP_DOWN_THRESHOLD
         else:
             threshold = settings.FLAP_UP_THRESHOLD
+
+        states = states[:threshold]
 
         threshold = max(threshold, 1)
 

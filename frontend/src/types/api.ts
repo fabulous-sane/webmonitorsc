@@ -13,12 +13,12 @@ export interface DashboardItem {
   name: string;
   url: string;
   last_status: SiteStatus | null;
-  health?: "healthy" | "warning" | "critical"
   uptime_24h: number;
   uptime_7d: number;
   uptime_30d: number;
   check_interval: number;
   last_checked_at: string | null;
+  health?: "ok" | "warning" | "critical" | "no_data"
   is_active: boolean;
   ssl_valid?: boolean | null;
   ssl_days_left?: number | null;
@@ -41,3 +41,4 @@ export interface Check {
   ssl_days_left?: number | null;
   ssl_severity?: SSLSeverity
 }
+

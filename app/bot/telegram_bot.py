@@ -20,7 +20,7 @@ from app.core.database import AsyncSessionLocal
 from app.services.site_service import SiteService
 from app.repositories.telegram_tokens import TelegramTokenRepository
 from app.repositories.users import UsersRepository
-from app.monitoring.status import SiteStatus
+from app.utils.health import normalize_health
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +34,13 @@ if settings.TELEGRAM_BOT_TOKEN:
     )
     dp = Dispatcher()
 
+HEALTH_META = {
+    "critical": ("🔴", "Критично"),
+    "warning": ("🟡", "Попередження"),
+    "ok": ("🟢", "Нормально"),
+    "no_data": ("⚪", "Немає даних"),
+}
+
 def main_menu():
     return ReplyKeyboardMarkup(
         keyboard=[
@@ -42,22 +49,6 @@ def main_menu():
         ],
         resize_keyboard=True,
     )
-
-def get_status_emoji(status: SiteStatus) -> str:
-    return {
-        SiteStatus.UP: "🟢",
-        SiteStatus.DOWN: "🔴",
-        SiteStatus.TIMEOUT: "🟡",
-        SiteStatus.ERROR: "⚠️",
-    }.get(status, "⚪")
-
-def get_status_label(status: SiteStatus) -> str:
-    return {
-        SiteStatus.UP: "Працює",
-        SiteStatus.DOWN: "Недоступний",
-        SiteStatus.TIMEOUT: "Таймаут",
-        SiteStatus.ERROR: "Помилка",
-    }.get(status, "Невідомо")
 
 def ascii_bar(percent: float, width: int = 10) -> str:
     percent = min(max(percent, 0), 100)
@@ -68,12 +59,15 @@ def ascii_bar(percent: float, width: int = 10) -> str:
 
 async def safe_send(chat_id: int, text: str, reply_markup=None):
     if not bot:
-        logger.warning("Bot not initialized (chat_id=%s)", chat_id)
         return
     try:
-        await bot.send_message(chat_id=chat_id, text=text, reply_markup=reply_markup or main_menu(),)
+        await bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=reply_markup or main_menu(),
+        )
     except TelegramForbiddenError:
-        logger.warning(f"Bot blocked by user {chat_id}")
+        logger.warning("Bot blocked by user %s", chat_id)
     except Exception:
         logger.exception("Telegram send failed")
 
@@ -194,7 +188,6 @@ async def list_sites(message: types.Message):
 async def site_details(callback: CallbackQuery):
     if not callback.message:
         return
-
     try:
         site_id = UUID(callback.data.split(":")[1])
 
@@ -210,59 +203,54 @@ async def site_details(callback: CallbackQuery):
                 await safe_callback_answer(callback)
                 return
 
+            health = normalize_health(data.get("health")) or "no_data"
+
+            emoji, health_label = HEALTH_META.get(health, ("⚪", "Невідомо"))
+
             uptime_24 = data["uptime_24"]
             uptime_7d = data["uptime_7d"]
             uptime_30d = data["uptime_30d"]
-            last_checks = data["last_checks"]
+            last_checks = (data.get("last_checks") or [])[:5]
 
             if last_checks:
                 last = last_checks[0]
-                last_time = last.checked_at.astimezone(ZoneInfo("Europe/Kyiv")).strftime("%d.%m %H:%M")
-                status = get_status_label(last.status)
+
+                last_time = last.checked_at.astimezone(
+                    ZoneInfo("Europe/Kyiv")
+                ).strftime("%d.%m %H:%M")
+
+                last_health = normalize_health(getattr(last, "health", None))
+
+                emoji_last = HEALTH_META.get(last_health, ("⚪",))[0]
+                rt = f"{last.response_time_ms} ms" if last.response_time_ms is not None else "-"
+
                 last_line = (
                     f"🕒 <b>Остання перевірка:</b>\n"
-                    f"{last_time} | {status} | {last.response_time_ms or '-'} ms\n\n"
+                    f"{emoji_last} {last_time} | {rt}\n\n"
                 )
             else:
                 last_line = "🕒 <b>Остання перевірка:</b>\nНемає даних\n\n"
 
             history_lines = []
+
             for row in last_checks:
-                emoji = get_status_emoji(row.status)
                 local_dt = row.checked_at.astimezone(ZoneInfo("Europe/Kyiv"))
                 time_str = local_dt.strftime("%H:%M:%S")
-                ssl_state = resolve_ssl_state(row.ssl_valid, row.ssl_warning, site.url)
 
-                ssl_icon = {
-                    "critical": "🔴",
-                    "warning": "🟡",
-                    "invalid": "❌",
-                    "ok": "🟢",
-                    "http": "🌐",
-                    "no_data": "⚪",
-                }.get(ssl_state, "⚪")
+                row_health = normalize_health(getattr(row, "health", None))
+
+                emoji_row = HEALTH_META.get(row_health, ("⚪",))[0]
 
                 history_lines.append(
-                    f"{emoji}{ssl_icon} {time_str} | {row.response_time_ms or '-'} ms"
+                    f"{emoji_row} {time_str} | {row.response_time_ms or '-'} ms"
                 )
 
             history_text = "\n".join(history_lines) if history_lines else "Немає даних"
 
-            emoji = get_status_emoji(site.last_status) if site.last_status else "⚪"
-
-            status = get_status_label(site.last_status)
-
-            health_map = {
-                "critical": "🔴 Критично",
-                "warning": "🟡 Попередження",
-                "ok": "🟢 Нормально",
-                "no_data": "⚪ Немає даних",
-            }
-
             text = (
                 f"{emoji} <b>{escape(site.name)}</b>\n\n"
                 f"<b>URL:</b> {escape(site.url)}\n"
-                f"<b>Статус:</b> {status}\n"
+                f"<b>Стан:</b> {health_label}\n"
                 f"<b>Інтервал:</b> {site.check_interval} сек\n\n"
                 f"{last_line}"
                 f"📈 <b>Uptime:</b>\n"
@@ -273,41 +261,32 @@ async def site_details(callback: CallbackQuery):
                 f"{history_text}"
             )
 
-            health = data.get("health")
-            if hasattr(health, "value"):
-                health = health.value
-            if health:
-                text += f"\n<b>Стан:</b> {health_map.get(health, health)}"
+            ssl_info = data.get("ssl") or {}
 
-            is_http = (site.url or "").startswith("http://")
-            ssl_info = data.get("ssl")
+            ssl_state = resolve_ssl_state(
+                ssl_info.get("ssl_valid"),
+                ssl_info.get("ssl_warning"),
+                site.url,
+            )
 
-            if is_http:
-                text += "\n\n🌐 <b>SSL:</b> відсутній (HTTP)"
-            elif ssl_info is None:
-                text += "\n\n⚪ <b>SSL:</b> немає даних"
+            days = (
+                ssl_info.get("ssl_days_left")
+                if ssl_info and isinstance(ssl_info.get("ssl_days_left"), int)
+                else "?"
+            )
+
+            if ssl_state == "http":
+                text += "\n\n🌐 <b>SSL:</b> відсутній"
+            elif ssl_state == "critical":
+                text += f"\n\n🔴 <b>SSL:</b> критично ({days} днів)"
+            elif ssl_state == "warning":
+                text += f"\n\n🟡 <b>SSL:</b> скоро закінчиться ({days} днів)"
+            elif ssl_state == "invalid":
+                text += "\n\n❌ <b>SSL:</b> недійсний"
+            elif ssl_state == "ok":
+                text += f"\n\n🟢 <b>SSL:</b> OK ({days} днів)"
             else:
-                days = ssl_info.get("ssl_days_left")
-                days = days if isinstance(days, int) else "?"
-
-                ssl_state = resolve_ssl_state(
-                    ssl_info.get("ssl_valid"),
-                    ssl_info.get("ssl_warning"),
-                    site.url,
-                )
-
-                if ssl_state == "http":
-                    text += "\n\n🌐 <b>SSL:</b> відсутній (HTTP)"
-                elif ssl_state == "critical":
-                    text += f"\n\n🔴 <b>SSL:</b> критично ({days} днів)"
-                elif ssl_state == "warning":
-                    text += f"\n\n🟡 <b>SSL:</b> скоро закінчиться ({days} днів)"
-                elif ssl_state == "invalid":
-                    text += "\n\n❌ <b>SSL:</b> недійсний"
-                elif ssl_state == "ok":
-                    text += f"\n\n🟢 <b>SSL:</b> OK ({days} днів)"
-                else:
-                    text += "\n\n⚪ <b>SSL:</b> немає даних"
+                text += "\n\n⚪ <b>SSL:</b> немає даних"
 
             keyboard = InlineKeyboardMarkup(
                 inline_keyboard=[

@@ -66,8 +66,9 @@ async def system_status(
     next_run = None
     if job and job.next_run_time:
         next_run = job.next_run_time
+
         if next_run.tzinfo is None:
-            next_run = next_run.replace(tzinfo=timezone.utc)
+            next_run = next_run.astimezone(timezone.utc)
         else:
             next_run = next_run.astimezone(timezone.utc)
 

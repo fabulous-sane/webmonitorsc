@@ -17,7 +17,7 @@ SELECT
     s.id AS site_id,
     s.name,
     s.url,
-    s.last_status::text AS last_status,
+    cr.status::text AS last_status,
     s.check_interval,
     s.is_active,
 
@@ -39,6 +39,7 @@ FROM sites s
 LEFT JOIN LATERAL (
     SELECT
         checked_at,
+        status,
         ssl_valid,
         ssl_days_left,
         ssl_warning,
@@ -95,10 +96,12 @@ ORDER BY s.created_at DESC;
             r.get("url"),
         )
 
+        r["ssl_state"] = ssl_state
+
         r["health"] = compute_health(
             r.get("last_status"),
             ssl_state,
-        )
+        ) or "no_data"
 
     return rows
 
@@ -125,7 +128,7 @@ async def get_site_checks(
 SELECT
   date_trunc('minute', cr.checked_at) AS checked_at,
   AVG(cr.response_time_ms)::float AS avg_response_time_ms,
-  BOOL_OR(cr.ssl_valid) AS ssl_valid,
+  MIN(cr.ssl_valid) AS ssl_valid,
   MIN(cr.ssl_days_left) AS ssl_days_left,
   MAX(cr.ssl_warning) AS ssl_warning,
   MAX(s.url) AS url,
@@ -163,10 +166,12 @@ ORDER BY checked_at ASC
             r.get("url"),
         )
 
+        r["ssl_state"] = ssl_state
+
         r["health"] = compute_health(
-            r.get("status"),
+            r.get("last_status"),
             ssl_state,
-        )
+        ) or "no_data"
 
     return rows
 

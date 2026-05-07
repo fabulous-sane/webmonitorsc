@@ -93,6 +93,18 @@ export default function SystemSummary({ data }: { data: SystemStatus | null }) {
             value={data.ssl_no_ssl_sites ?? 0}
             className="bg-gray-200"
             />
+
+            <Card
+            label="No data"
+            value={data.ssl_no_data_sites}
+            className="bg-gray-100"
+            />
+
+                      <Card
+  label="Проблемні сайти"
+  value={data.problematic_sites}
+  className="bg-red-50"
+/>
         </div>
       </div>
 
@@ -126,6 +138,8 @@ export default function SystemSummary({ data }: { data: SystemStatus | null }) {
             value={data.ssl_no_data_events}
             className="bg-gray-100"
           />
+
+
         </div>
       </div>
     </div>

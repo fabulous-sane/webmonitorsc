@@ -1,25 +1,23 @@
-from app.monitoring.status import SiteStatus
 from app.monitoring.health import HealthStatus
 
+def compute_health(http_status: str | None, ssl_state: str) -> HealthStatus:
 
-def compute_health(http_status, ssl_state):
-
-    if http_status == SiteStatus.DOWN:
+    if http_status in ("DOWN", "ERROR"):
         return HealthStatus.CRITICAL
 
-    if http_status == SiteStatus.ERROR:
-        return HealthStatus.CRITICAL
-
-    if http_status == SiteStatus.TIMEOUT:
+    if http_status == "TIMEOUT":
         return HealthStatus.WARNING
 
-    if ssl_state == "critical":
+    if http_status is None:
+        return HealthStatus.NO_DATA
+
+    if ssl_state in ("critical", "invalid"):
         return HealthStatus.CRITICAL
 
     if ssl_state == "warning":
         return HealthStatus.WARNING
 
-    if http_status == SiteStatus.UP:
-        return HealthStatus.OK
+    if ssl_state == "no_data":
+        return HealthStatus.NO_DATA
 
-    return HealthStatus.NO_DATA
+    return HealthStatus.OK

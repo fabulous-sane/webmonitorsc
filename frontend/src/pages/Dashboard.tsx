@@ -11,7 +11,7 @@ import type { SystemStatus } from "../components/SystemSummary";
 import type { SSLState } from "../utils/ssl"
 
 type HealthFilter = "ALL" | "HEALTHY" | "WARNING" | "CRITICAL";
-type StatusFilter = "ВСІ" | "UP" | "DOWN" | "ERROR" | "TIMEOUT";
+type StatusFilter = "ВСІ" | "UP" | "PROBLEM" | "ERROR" | "TIMEOUT";
 type ActivityFilter = "ВСІ" | "АКТИВНІ" | "АРХІВОВАНІ";
 type SSLFilter =
   | "ALL"
@@ -84,30 +84,31 @@ const [systemData, setSystemData] = useState<SystemStatus | null>(null)
 if (loading) return <div className="p-10">Завантаження...</div>;
 
 const filteredSites = sites.filter(s => {
-const state: SSLState =
-  s.url.startsWith("http://")
-    ? "http"
-    : (s.ssl_state || "no_data")
+  const state: SSLState =
+    s.ssl_state ?? (s.url.startsWith("http://") ? "http" : "no_data")
+
   const mapped = sslFilterMap[sslFilter]
+
   // activity
   if (activityFilter === "АКТИВНІ" && !s.is_active) return false
   if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
 
   // http status
-  if (statusFilter === "DOWN" && !isProblem(s.last_status)) return false
-
-if (
-  statusFilter !== "ВСІ" &&
-  statusFilter !== "DOWN" &&
-  (s.last_status ?? "") !== statusFilter
-) {
-  return false
-}
+  if (statusFilter === "PROBLEM") {
+    if (!isProblem(s.last_status)) return false
+  } else if (
+    statusFilter !== "ВСІ" &&
+    (s.last_status ?? "") !== statusFilter
+  ) {
+    return false
+  }
 
   // health
-  if (healthFilter === "CRITICAL" && s.health !== "critical") return false
-  if (healthFilter === "WARNING" && s.health !== "warning") return false
-  if (healthFilter === "HEALTHY" && s.health !== "ok") return false
+  const h = s.health ?? "no_data"
+
+  if (healthFilter === "CRITICAL" && h !== "critical") return false
+  if (healthFilter === "WARNING" && h !== "warning") return false
+  if (healthFilter === "HEALTHY" && !["ok", "no_data"].includes(h)) return false
 
   // ssl
   if (mapped && state !== mapped) return false

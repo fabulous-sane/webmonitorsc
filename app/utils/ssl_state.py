@@ -1,6 +1,16 @@
-def resolve_ssl_state(ssl_valid, ssl_warning, url: str) -> str:
+def resolve_ssl_state(
+    ssl_valid,
+    ssl_warning,
+    url: str,
+    ssl_error: str | None = None,
+) -> str:
+
     if url.startswith("http://"):
-        return "no_ssl"
+        return "http"
+
+    # ❗ КРИТИЧНО: timeout ≠ invalid
+    if ssl_error == "timeout":
+        return "no_data"
 
     if ssl_warning == "critical":
         return "critical"

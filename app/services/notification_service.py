@@ -3,55 +3,43 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.monitoring.status import SiteStatus
 from app.utils.ssl_state import resolve_ssl_state
+from app.utils.health import normalize_health
 from app.monitoring.process_result import NotifyPayload
 from app.repositories.users import UsersRepository
 
 logger = logging.getLogger(__name__)
 
+HEALTH_META = {
+    "critical": ("🔴", "Критично"),
+    "warning": ("🟡", "Попередження"),
+    "ok": ("🟢", "Нормально"),
+    "no_data": ("⚪", "Немає даних"),
+}
 
 class NotificationService:
     def __init__(self, bot: Bot):
         self._bot = bot
 
     @staticmethod
-    def get_status_label(status: SiteStatus) -> str:
-        return {
-            SiteStatus.UP: "Працює",
-            SiteStatus.DOWN: "Недоступний",
-            SiteStatus.TIMEOUT: "⏱ Таймаут (сервер не відповідає)",
-            SiteStatus.ERROR: "⚠️ Помилка (мережа/запит)",
-        }.get(status, "Невідомо")
-
-    @staticmethod
     def _format_status(payload: NotifyPayload) -> str:
-        status = payload.new_status
+        health = normalize_health(payload.health) or "no_data"
+        emoji, label = HEALTH_META.get(health, ("⚪", "Невідомо"))
 
-        emoji = {
-            SiteStatus.UP: "🟢",
-            SiteStatus.DOWN: "🔴",
-            SiteStatus.TIMEOUT: "🟡",
-            SiteStatus.ERROR: "⚠️",
-        }.get(status, "⚪")
+        is_http_change = payload.old_status is not None and payload.ssl_warning is None
 
-        if payload.old_status is not None:
-            old_raw = payload.old_status
-            new_raw = payload.new_status
-
-            old = NotificationService.get_status_label(old_raw)
-            new = NotificationService.get_status_label(new_raw)
-
+        if is_http_change:
             lines = [
-                f"{emoji} <b>Зміна статусу сайту</b>",
+                f"{emoji} <b>Зміна стану сайту</b>",
                 "",
                 f"<b>Сайт:</b> {payload.site_name}",
                 f"<b>URL:</b> {payload.url}",
-                f"<b>Статус:</b> {old} → {new}",
+                f"<b>Стан:</b> {label}",
             ]
         else:
             lines = [
                 "🔐 <b>Зміна стану SSL</b>",
+                "",
                 f"<b>Сайт:</b> {payload.site_name}",
                 f"<b>URL:</b> {payload.url}",
             ]
@@ -62,29 +50,26 @@ class NotificationService:
         if payload.response_time_ms is not None:
             lines.append(f"<b>Response:</b> {payload.response_time_ms} ms")
 
-        if payload.health:
-            lines.append(f"🧠 <b>Health:</b> {payload.health.value.upper()}")
-
-        days = payload.ssl_days_left if payload.ssl_days_left is not None else "?"
-
         ssl_state = resolve_ssl_state(
             payload.ssl_valid,
             payload.ssl_warning,
             payload.url,
         )
 
+        days = payload.ssl_days_left if isinstance(payload.ssl_days_left, int) else "?"
+
         if ssl_state == "http":
-            lines.append("🌐 <b>SSL:</b> відсутній (HTTP)")
+            lines.append("🌐 SSL: відсутній")
         elif ssl_state == "critical":
-            lines.append(f"🔴 <b>SSL:</b> критично ({payload.ssl_days_left} днів)")
+            lines.append(f"🔴 SSL: критично ({days} днів)")
         elif ssl_state == "warning":
-            lines.append(f"🟡 <b>SSL:</b> скоро закінчиться ({payload.ssl_days_left} днів)")
+            lines.append(f"🟡 SSL: скоро закінчиться ({days} днів)")
         elif ssl_state == "invalid":
-            lines.append("❌ <b>SSL:</b> недійсний")
+            lines.append("❌ SSL: недійсний")
         elif ssl_state == "ok":
-            lines.append(f"🟢 <b>SSL:</b> дійсний ({days} днів)")
+            lines.append(f"🟢 SSL: OK ({days} днів)")
         else:
-            lines.append("⚪ <b>SSL:</b> немає даних")
+            lines.append("⚪ SSL: немає даних")
 
         return "\n".join(lines)
 
@@ -102,14 +87,13 @@ class NotificationService:
             return
 
         try:
-            await self._bot.send_message(chat_id=chat_id, text=message, parse_mode="HTML")
-
-        except TelegramForbiddenError:
-            logger.warning(
-                "User blocked bot. Cleaning telegram_chat_id (chat_id=%s)",
-                chat_id,
+            await self._bot.send_message(
+                chat_id=chat_id,
+                text=message,
+                parse_mode="HTML"
             )
 
+        except TelegramForbiddenError:
             users_repo = UsersRepository(session)
             user = await users_repo.get_by_telegram_chat_id(chat_id)
 

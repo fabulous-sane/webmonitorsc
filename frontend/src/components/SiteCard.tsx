@@ -82,9 +82,7 @@ const formatDate = (d: string | null) => {
 
 const isHttp = url.startsWith("http://")
 
-const sslState = isHttp
-  ? "http"
-  : (ssl_state ?? "no_data")
+const sslState = ssl_state ?? (isHttp ? "http" : "no_data")
 
 const sslLabel = sslLabels[sslState] ?? "Немає даних"
 
@@ -106,23 +104,29 @@ const chartData = useMemo(() => {
   if (!rawData.length) return []
 
   return rawData
-    .filter(c => c.checked_at)
-    .map(c => {
-      const rt = c.avg_response_time_ms ?? c.response_time_ms
-      const t = new Date(c.checked_at!)
-      const time = isNaN(t.getTime()) ? Date.now() : t.getTime()
-      return {
-        time,
-        response_time: Number.isFinite(rt) && rt! >= 0 ? rt : null,
-        status: c.status,
-        ssl_state: url.startsWith("http://")
-        ? "http"
-        : (c.ssl_state ?? "no_data"),
-        ssl_days_left: c.ssl_days_left,
-        ssl_severity: c.ssl_severity,
-        health: c.health ?? "no_data",
-      }
-    })
+  .filter(c => c.checked_at)
+  .map(c => {
+    const rt = c.avg_response_time_ms ?? c.response_time_ms
+
+    const validRt =
+      typeof rt === "number" && Number.isFinite(rt) && rt >= 0
+        ? rt
+        : null
+
+    const t = new Date(c.checked_at!)
+    const time = isNaN(t.getTime()) ? Date.now() : t.getTime()
+
+    return {
+      time,
+      response_time: validRt,
+      status: c.status,
+      ssl_state:
+        c.ssl_state ?? (url.startsWith("http://") ? "http" : "no_data"),
+      ssl_days_left: c.ssl_days_left,
+      ssl_severity: c.ssl_severity,
+      health: c.health ?? "no_data",
+    }
+  })
 }, [rawData])
 
   const threshold = 500;
@@ -194,6 +198,8 @@ archived
     ? "border-red-600"
     : health === "warning"
     ? "border-yellow-400"
+    : health === "no_data"
+    ? "border-gray-400"
     : "border-gray-300"
 }`}
 >
@@ -370,12 +376,11 @@ const pointMeta = !isHttp
 const healthLabels = {
   critical: "🔴 Критично",
   warning: "🟡 Попередження",
-  healthy: "🟢 Нормально",
+  ok: "🟢 Нормально",
   no_data: "⚪ Немає даних",
 }
 
-const healthKey = p.health ?? "no_data"
-    const pointLabel = pointMeta?.label ?? "—"
+const healthKey = (p.health ?? "no_data") as keyof typeof healthLabels
 
     return (
       <div className="bg-white p-2 border rounded shadow text-xs">
@@ -426,6 +431,7 @@ const healthKey = p.health ?? "no_data"
     const { payload } = props
     if (!payload) return false
 
+const healthKey = payload.health ?? "no_data"
 const colorMap = {
   critical: "#dc2626",
   warning: "#f59e0b",
@@ -433,11 +439,11 @@ const colorMap = {
   no_data: "#9ca3af"
 }
 
-    const healthKey = payload.health ?? "no_data"
+const color = colorMap[healthKey as keyof typeof colorMap] ?? "#9ca3af"
 return (
       <circle
         r={3}
-        fill={colorMap[healthKey] ?? "#9ca3af"}
+        fill={color}
       />
     )
   }}
