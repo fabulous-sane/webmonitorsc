@@ -95,6 +95,7 @@ ORDER BY s.created_at DESC;
             r.get("ssl_valid"),
             r.get("ssl_warning"),
             r.get("url"),
+            ssl_error=r.get("ssl_error"),
         )
 
         r["ssl_state"] = ssl_state
@@ -102,11 +103,8 @@ ORDER BY s.created_at DESC;
         status_str = r.get("status")
 
         status = None
-        if status_str:
-            try:
-                status = SiteStatus(status_str)
-            except ValueError:
-                status = None
+        if status_str and status_str in SiteStatus._value2member_map_:
+            status = SiteStatus(status_str)
 
         r["health"] = compute_health(
             status,
@@ -135,31 +133,35 @@ async def get_site_checks(
         raise ValueError("Invalid range")
 
     stmt = text("""
-SELECT
-  date_trunc('minute', cr.checked_at) AS checked_at,
-  AVG(cr.response_time_ms)::float AS avg_response_time_ms,
-  CASE
-  WHEN BOOL_OR(cr.ssl_valid = false) THEN false
-  WHEN BOOL_OR(cr.ssl_valid = true) THEN true
-  ELSE NULL
-END AS ssl_valid
-  MIN(cr.ssl_days_left) AS ssl_days_left,
-  MAX(cr.ssl_warning) AS ssl_warning,
-  MAX(s.url) AS url,
-  (
-ARRAY_AGG(cr.status::text ORDER BY cr.checked_at DESC)
-)[1] AS status
+    SELECT
+      date_trunc('minute', cr.checked_at) AS checked_at,
+      AVG(cr.response_time_ms)::float AS avg_response_time_ms,
 
-FROM check_results cr
-JOIN sites s ON s.id = cr.site_id
+      CASE
+        WHEN BOOL_OR(cr.ssl_valid = false) THEN false
+        WHEN BOOL_OR(cr.ssl_valid = true) THEN true
+        ELSE NULL
+      END AS ssl_valid,
 
-WHERE
-  cr.site_id = :site_id
-  AND s.user_id = :user_id
-  AND cr.checked_at >= :cutoff
+      MIN(cr.ssl_days_left) AS ssl_days_left,
+      MAX(cr.ssl_warning) AS ssl_warning,
+      MAX(cr.ssl_error) AS ssl_error,
+      MAX(s.url) AS url,
 
-GROUP BY date_trunc('minute', cr.checked_at)
-ORDER BY checked_at ASC
+      (
+        ARRAY_AGG(cr.status::text ORDER BY cr.checked_at DESC)
+      )[1] AS status
+
+    FROM check_results cr
+    JOIN sites s ON s.id = cr.site_id
+
+    WHERE
+      cr.site_id = :site_id
+      AND s.user_id = :user_id
+      AND cr.checked_at >= :cutoff
+
+    GROUP BY date_trunc('minute', cr.checked_at)
+    ORDER BY checked_at ASC
     """)
 
     result = await session.execute(
@@ -178,6 +180,7 @@ ORDER BY checked_at ASC
             r.get("ssl_valid"),
             r.get("ssl_warning"),
             r.get("url"),
+            ssl_error=r.get("ssl_error"),
         )
 
         r["ssl_state"] = ssl_state
@@ -185,11 +188,8 @@ ORDER BY checked_at ASC
         status_str = r.get("status")
 
         status = None
-        if status_str:
-            try:
-                status = SiteStatus(status_str)
-            except ValueError:
-                status = None
+        if status_str and status_str in SiteStatus._value2member_map_:
+            status = SiteStatus(status_str)
 
         r["health"] = compute_health(
             status,
