@@ -9,6 +9,8 @@ from app.monitoring.process_result import process_check_result
 from app.services.notification_service import NotificationService
 from app.monitoring.concurrency import check_semaphore
 from datetime import datetime, timezone
+from app.monitoring.demo_override import apply_demo_override
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,8 @@ class CheckSiteUseCase:
                         return
 
                 raw = await run_check(url=site.url)
+                if settings.DEMO_MODE:
+                    raw = apply_demo_override(site, raw)
 
                 result = await process_check_result(
                     session=self._session,

@@ -31,6 +31,7 @@ class Settings(BaseSettings):
 
     TELEGRAM_BOT_TOKEN: str | None = None
     TELEGRAM_CHAT_ID: int | None = None
+    DEMO_MODE = True
 
     ENV: str = "prod"
     DEBUG: bool = False

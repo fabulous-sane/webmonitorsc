@@ -61,7 +61,7 @@ class NotificationService:
             lines.append(f"<b>Response:</b> {payload.response_time_ms} ms")
 
         ssl_state = resolve_ssl_state(
-            payload.ssl_warning is None and payload.ssl_days_left is not None,
+            payload.ssl_valid,
             payload.ssl_warning,
             payload.url,
         )
