@@ -100,11 +100,6 @@ export default function SystemSummary({ data }: { data: SystemStatus | null }) {
             className="bg-gray-100"
             />
 
-                      <Card
-  label="Проблемні сайти"
-  value={data.problematic_sites}
-  className="bg-red-50"
-/>
         </div>
       </div>
 
