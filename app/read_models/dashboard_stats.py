@@ -26,8 +26,9 @@ SELECT
     cr.ssl_valid,
     cr.ssl_days_left,
     cr.ssl_warning,
+    cr.ssl_error,
     cr.ssl_expires_at,
-
+    
     COALESCE(stats_24.uptime_24h, 0) AS uptime_24h,
     COALESCE(stats_7.uptime_7d, 0) AS uptime_7d,
     COALESCE(stats_30.uptime_30d, 0) AS uptime_30d,
@@ -100,14 +101,10 @@ ORDER BY s.created_at DESC;
 
         r["ssl_state"] = ssl_state
 
-        status_str = r.get("status")
-
-        status = None
-        if status_str and status_str in SiteStatus._value2member_map_:
-            status = SiteStatus(status_str)
+        status_str = r.get("last_status")
 
         r["health"] = compute_health(
-            status,
+            status_str,
             ssl_state,
         ) or "no_data"
 
@@ -185,14 +182,10 @@ async def get_site_checks(
 
         r["ssl_state"] = ssl_state
 
-        status_str = r.get("status")
-
-        status = None
-        if status_str and status_str in SiteStatus._value2member_map_:
-            status = SiteStatus(status_str)
+        status_str = r.get("last_status")
 
         r["health"] = compute_health(
-            status,
+            status_str,
             ssl_state,
         ) or "no_data"
 

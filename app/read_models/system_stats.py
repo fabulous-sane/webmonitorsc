@@ -16,12 +16,13 @@ SELECT
     cr.status,
     cr.ssl_valid,
     cr.ssl_warning,
-    cr.checked_at
+    cr.checked_at,
+    cr.ssl_error
 
 FROM sites s
 
 LEFT JOIN LATERAL (
-    SELECT status, ssl_valid, ssl_warning, checked_at
+    SELECT status, ssl_valid, ssl_warning, checked_at, ssl_error
     FROM check_results
     WHERE site_id = s.id
     ORDER BY checked_at DESC
@@ -29,7 +30,6 @@ LEFT JOIN LATERAL (
 ) cr ON true
 
 WHERE s.user_id = :user_id
-AND s.url NOT LIKE 'http://%'
 """)
 
     result = await session.execute(stmt, {"user_id": user_id})
@@ -56,6 +56,7 @@ AND s.url NOT LIKE 'http://%'
         status = r["status"]
         ssl_valid = r["ssl_valid"]
         ssl_warning = r["ssl_warning"]
+        ssl_error = r["ssl_error"]
 
         if is_active:
             stats["active_sites"] += 1
@@ -66,6 +67,7 @@ AND s.url NOT LIKE 'http://%'
             ssl_valid,
             ssl_warning,
             url,
+            ssl_error=ssl_error,
         )
 
         health = compute_health(status, ssl_state)
@@ -112,7 +114,6 @@ FROM check_results cr
 JOIN sites s ON s.id = cr.site_id
 
 WHERE s.user_id = :user_id
-AND s.url NOT LIKE 'http://%'
 AND cr.checked_at >= NOW() - INTERVAL '24 hours'
     """)
 
