@@ -118,7 +118,7 @@ async def process_check_result(
 
     notify_ssl = False
 
-    if not site.url.startswith("http://"):
+    if site.url.startswith("https://"):
 
         ssl_threshold = (
             settings.FLAP_DOWN_THRESHOLD
@@ -133,9 +133,9 @@ async def process_check_result(
             limit=ssl_threshold,
         )
 
-        states = [ssl_state] + [
+        states = [
             resolve_ssl_state(v, w, site.url, e)
-            for v, w, e in last_rows[:ssl_threshold - 1]
+            for v, w, e in last_rows
         ]
 
         stable = (
@@ -145,15 +145,8 @@ async def process_check_result(
 
         prev_state = None
 
-        if len(last_rows) > 1:
-            prev_valid, prev_warning, prev_error = last_rows[1]
-
-            prev_state = resolve_ssl_state(
-                prev_valid,
-                prev_warning,
-                site.url,
-                prev_error,
-            )
+        if len(states) > 1:
+            prev_state = states[1]
 
         ssl_changed = (
                 stable
@@ -161,10 +154,15 @@ async def process_check_result(
                 and prev_state != ssl_state
         )
 
+        problem_states = {"critical", "warning", "invalid"}
+
         notify_ssl = (
                 ssl_changed
-                and ssl_state != "no_data"
-                and prev_state != "no_data"
+                and prev_state is not None
+                and (
+                        ssl_state in problem_states
+                        or prev_state in problem_states
+                )
         )
 
     notify_payload = None
