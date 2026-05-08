@@ -154,15 +154,9 @@ async def process_check_result(
                 and prev_state != ssl_state
         )
 
-        problem_states = {"critical", "warning", "invalid"}
-
         notify_ssl = (
                 ssl_changed
                 and prev_state is not None
-                and (
-                        ssl_state in problem_states
-                        or prev_state in problem_states
-                )
         )
 
     notify_payload = None
