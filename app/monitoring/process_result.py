@@ -132,26 +132,24 @@ async def process_check_result(
             limit=ssl_threshold
         )
 
-        history_states = [
+        history_states = [ssl_state] + [
             resolve_ssl_state(v, w, site.url, e)
             for v, w, e in last_rows
         ]
 
-        prev_state = history_states[0] if history_states else None
-
-        ssl_changed_raw = (
-                prev_state is not None
-                and prev_state != ssl_state
-        )
+        prev_state = history_states[1] if len(history_states) > 1 else None
 
         stable = (
                 len(history_states) >= ssl_threshold
                 and all(s == ssl_state for s in history_states[:ssl_threshold])
         )
 
-        ssl_changed = ssl_changed_raw and stable
+        ssl_changed = (
+                prev_state is not None
+                and prev_state != ssl_state
+        )
 
-        notify_ssl = ssl_changed_raw
+        notify_ssl = ssl_changed
 
     notify_payload = None
 
