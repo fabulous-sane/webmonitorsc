@@ -133,9 +133,9 @@ async def process_check_result(
             limit=ssl_threshold,
         )
 
-        states = [
+        states = [ssl_state] + [
             resolve_ssl_state(v, w, site.url, e)
-            for v, w, e in last_rows
+            for v, w, e in last_rows[:ssl_threshold - 1]
         ]
 
         stable = (
