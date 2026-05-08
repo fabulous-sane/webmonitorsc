@@ -27,6 +27,7 @@ class NotifyPayload:
     ssl_valid: bool | None = None
     ssl_error: str | None = None
     health: HealthStatus | None = None
+    is_ssl_change: bool = False
 
 @dataclass
 class ProcessResult:
@@ -91,7 +92,7 @@ async def process_check_result(
 
     last_statuses = await checks_repo.get_last_statuses(
         site_id=site.id,
-        limit = max(threshold - 1, 0),
+        limit=threshold,
     )
 
     statuses = [raw_status] + last_statuses
@@ -115,7 +116,7 @@ async def process_check_result(
     if status_changed:
         site.last_status = new_status
 
-    ssl_changed = False
+    notify_ssl = False
 
     if not site.url.startswith("http://"):
 
@@ -132,10 +133,10 @@ async def process_check_result(
             limit=ssl_threshold,
         )
 
-        states = [
+        states = [ssl_state] + [
             resolve_ssl_state(v, w, site.url, e)
-            for v, w, e in last_rows
-        ][:ssl_threshold]
+            for v, w, e in last_rows[:ssl_threshold - 1]
+        ]
 
         stable = (
                 len(states) >= ssl_threshold
@@ -143,8 +144,9 @@ async def process_check_result(
         )
 
         prev_state = None
-        if len(last_rows) > 0:
-            prev_valid, prev_warning, prev_error = last_rows[0]
+
+        if len(last_rows) > 1:
+            prev_valid, prev_warning, prev_error = last_rows[1]
 
             prev_state = resolve_ssl_state(
                 prev_valid,
@@ -153,19 +155,17 @@ async def process_check_result(
                 prev_error,
             )
 
-        problem_states = {"critical", "warning", "invalid"}
-
         ssl_changed = (
                 stable
                 and prev_state is not None
                 and prev_state != ssl_state
-                and ssl_state in problem_states
         )
+
+        notify_ssl = ssl_changed
 
     notify_payload = None
 
-
-    if status_changed or ssl_changed:
+    if status_changed or notify_ssl:
         notify_payload = NotifyPayload(
             site_id=site.id,
             site_name=site.name,
@@ -178,7 +178,8 @@ async def process_check_result(
             ssl_days_left=raw.ssl_days_left,
             ssl_valid=raw.ssl_valid,
             ssl_error=raw.ssl_error,
-            health=compute_health(new_status, ssl_state)
+            health=compute_health(new_status, ssl_state),
+            is_ssl_change = notify_ssl,
         )
 
     site.last_checked_at = datetime.now(timezone.utc)

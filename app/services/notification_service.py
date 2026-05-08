@@ -3,6 +3,7 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.monitoring.status import SiteStatus
 from app.utils.ssl_state import resolve_ssl_state
 from app.utils.health import normalize_health
 from app.monitoring.process_result import NotifyPayload
@@ -26,28 +27,35 @@ class NotificationService:
         health = normalize_health(payload.health) or "no_data"
         emoji, label = HEALTH_META.get(health, ("⚪", "Невідомо"))
 
-        is_http_change = payload.old_status is not None
+        is_http_change = (
+                payload.old_status is not None
+                and payload.old_status != payload.new_status
+        )
+        is_ssl_change = payload.is_ssl_change
+
+        lines = [
+            f"{emoji} <b>Оновлення стану ресурсу</b>",
+            "",
+            f"<b>Сайт:</b> {payload.site_name}",
+            f"<b>URL:</b> {payload.url}",
+            f"<b>Стан:</b> {label}",
+        ]
 
         if is_http_change:
-            lines = [
-                f"{emoji} <b>Зміна стану сайту</b>",
-                "",
-                f"<b>Сайт:</b> {payload.site_name}",
-                f"<b>URL:</b> {payload.url}",
-                f"<b>Стан:</b> {label}",
-            ]
-        else:
-            lines = [
-                "🔐 <b>Зміна стану SSL</b>",
-                "",
-                f"<b>Сайт:</b> {payload.site_name}",
-                f"<b>URL:</b> {payload.url}",
-            ]
+            old = payload.old_status.value if payload.old_status else "unknown"
+            new = payload.new_status.value if payload.new_status else "unknown"
+            lines.append(f"<b>HTTP зміна:</b> {old} → {new}")
 
-        if payload.status_code is not None:
-            lines.append(f"<b>HTTP:</b> {payload.status_code}")
+        if is_ssl_change:
+            lines.append("<b>SSL зміна:</b> так")
 
-        if payload.response_time_ms is not None:
+        if is_http_change and payload.status_code is not None:
+            lines.append(f"<b>HTTP код:</b> {payload.status_code}")
+
+        if (
+                payload.response_time_ms is not None
+                and payload.new_status == SiteStatus.UP
+        ):
             lines.append(f"<b>Response:</b> {payload.response_time_ms} ms")
 
         ssl_state = resolve_ssl_state(

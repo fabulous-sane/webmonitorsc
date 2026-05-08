@@ -275,17 +275,7 @@ class SiteService:
 
         last_checks = await results_repo.get_last_checks(site_id=site.id, limit=5)
 
-        latest_status = None
-
-        if last_checks:
-            latest = last_checks[0]
-
-            if latest and latest.status:
-                latest_status = site.last_status or (latest.status if latest else None)
-        status = site.last_status
-
-        if status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
-            status = None
+        latest_status = site.last_status
 
         health = compute_health(latest_status, ssl_state)
 
@@ -308,6 +298,6 @@ class SiteService:
             "uptime_7d": uptime_7d,
             "uptime_30d": uptime_30d,
             "last_checks": enriched_checks,
-            "ssl": ssl,
+            "ssl": ssl or {},
             "health": health,
         }
