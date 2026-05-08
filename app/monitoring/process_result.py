@@ -161,7 +161,11 @@ async def process_check_result(
                 and prev_state != ssl_state
         )
 
-        notify_ssl = ssl_changed
+        notify_ssl = (
+                ssl_changed
+                and ssl_state != "no_data"
+                and prev_state != "no_data"
+        )
 
     notify_payload = None
 
