@@ -77,19 +77,17 @@ WHERE s.user_id = :user_id
 
         if url.startswith("http://"):
             stats["ssl_no_ssl_sites"] += 1
-            continue
-        elif ssl_state == "critical":
-            stats["ssl_critical_sites"] += 1
-        elif ssl_state == "warning":
-            stats["ssl_warning_sites"] += 1
-        elif ssl_state == "invalid":
-            stats["ssl_invalid_sites"] += 1
-        elif ssl_state == "no_data":
-            stats["ssl_no_data_sites"] += 1
-        elif ssl_state == "ok":
-            stats["ssl_ok_sites"] += 1
         else:
-            stats["ssl_no_data_sites"] += 1
+            if ssl_state == "critical":
+                stats["ssl_critical_sites"] += 1
+            elif ssl_state == "warning":
+                stats["ssl_warning_sites"] += 1
+            elif ssl_state == "invalid":
+                stats["ssl_invalid_sites"] += 1
+            elif ssl_state == "ok":
+                stats["ssl_ok_sites"] += 1
+            else:
+                stats["ssl_no_data_sites"] += 1
 
         if health in ("critical", "warning"):
             stats["problematic_sites"] += 1
@@ -121,8 +119,7 @@ JOIN sites s ON s.id = cr.site_id
 
 WHERE s.user_id = :user_id
 AND s.is_active = true
-AND cr.checked_at >= (
-    DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv')
+AND cr.checked_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv')
     """)
 
     events = await session.execute(events_stmt, {"user_id": user_id})

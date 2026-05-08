@@ -94,17 +94,17 @@ ORDER BY s.created_at DESC;
     for r in rows:
         status = r.get("last_status")
 
-        if not status or status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
-            r["health"] = "no_data"
-            r["ssl_state"] = "no_data"
-            continue
-
         ssl_state = resolve_ssl_state(
             r.get("ssl_valid"),
             r.get("ssl_warning"),
             r.get("url"),
             r.get("ssl_error"),
         )
+
+        if not status or status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
+            r["health"] = "no_data"
+            r["ssl_state"] = ssl_state
+            continue
 
         r["ssl_state"] = ssl_state
         r["health"] = compute_health(status, ssl_state) or "no_data"
@@ -133,9 +133,10 @@ async def get_site_checks(
     stmt = text("""
     SELECT
       date_trunc('minute', cr.checked_at) AS checked_at,
-      AVG(cr.response_time_ms)
-FILTER (WHERE cr.response_time_ms IS NOT NULL)
-AS avg_response_time_ms,
+      COALESCE(
+  AVG(cr.response_time_ms) FILTER (WHERE cr.response_time_ms IS NOT NULL),
+  0
+) AS avg_response_time_ms,
 
       CASE
         WHEN BOOL_OR(cr.ssl_valid = false) THEN false
@@ -180,16 +181,17 @@ AS avg_response_time_ms,
     for r in rows:
         status = r.get("status")
 
-        if status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
-            r["health"] = "no_data"
-            r["ssl_state"] = "no_data"
-            continue
         ssl_state = resolve_ssl_state(
             r.get("ssl_valid"),
             r.get("ssl_warning"),
             r.get("url"),
             r.get("ssl_error"),
         )
+
+        if status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
+            r["health"] = "no_data"
+            r["ssl_state"] = ssl_state
+            continue
 
         r["ssl_state"] = ssl_state
 

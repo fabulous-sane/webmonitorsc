@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Sequence, Mapping, Any
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+from zoneinfo import ZoneInfo
 
 
 async def get_checks_for_export(
@@ -16,9 +17,9 @@ async def get_checks_for_export(
     now = datetime.now(timezone.utc)
 
     if range == "24h":
-        cutoff = datetime.now(timezone.utc).replace(
+        cutoff = datetime.now(ZoneInfo("Europe/Kyiv")).replace(
             hour=0, minute=0, second=0, microsecond=0
-        )
+        ).astimezone(timezone.utc)
     elif range == "7d":
         cutoff = now - timedelta(days=7)
     elif range == "30d":
@@ -29,8 +30,10 @@ async def get_checks_for_export(
     stmt = text("""
 SELECT
   date_trunc('minute', cr.checked_at) AS checked_at,
+  COALESCE(
   AVG(cr.response_time_ms) FILTER (WHERE cr.response_time_ms IS NOT NULL),
-(
+  0
+) AS avg_response_time_ms,
 ARRAY_AGG(cr.status::text ORDER BY cr.checked_at DESC)
 )[1] AS status,
 

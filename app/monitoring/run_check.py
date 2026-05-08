@@ -122,7 +122,20 @@ async def run_check(url: str) -> CheckRawResult:
             host = final_url.hostname or parsed.hostname
 
             if await _is_private_host(host):
-                return CheckRawResult(False, None, None, "blocked_private_ip")
+                ssl_data = await _safe_ssl(host, final_url.scheme)
+                ssl_valid, ssl_expires_at, ssl_days_left, ssl_error, ssl_warning = _map_ssl(ssl_data)
+
+                return CheckRawResult(
+                    False,
+                    None,
+                    None,
+                    "blocked_private_ip",
+                    ssl_valid,
+                    ssl_expires_at,
+                    ssl_days_left,
+                    ssl_error,
+                    ssl_warning,
+                )
 
             if ssl_data is None and final_url.scheme == "https":
                 ssl_data = await _safe_ssl(host, final_url.scheme)

@@ -54,7 +54,7 @@ class NotificationService:
             payload.ssl_valid,
             payload.ssl_warning,
             payload.url,
-            getattr(payload, "ssl_error", None),
+            payload.ssl_error,
         )
 
         days = payload.ssl_days_left if isinstance(payload.ssl_days_left, int) else "?"

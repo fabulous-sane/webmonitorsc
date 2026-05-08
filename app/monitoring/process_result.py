@@ -109,7 +109,6 @@ async def process_check_result(
 
     if new_status is None:
         new_status = raw_status
-        http_stable = True
 
     status_changed = new_status != old_status
 
@@ -183,7 +182,6 @@ async def process_check_result(
         )
 
     site.last_checked_at = datetime.now(timezone.utc)
-    await session.commit()
 
     return ProcessResult(
         status_changed=status_changed,
