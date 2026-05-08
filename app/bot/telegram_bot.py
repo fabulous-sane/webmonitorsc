@@ -186,7 +186,7 @@ async def list_sites(message: types.Message):
 
             await bot.send_message(
                 chat_id=message.chat.id,
-                text="📋 Меню:",
+                text="",
                 reply_markup=main_menu(),
             )
 
