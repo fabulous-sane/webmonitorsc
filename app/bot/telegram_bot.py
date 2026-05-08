@@ -69,7 +69,7 @@ async def safe_send(chat_id: int, text: str, reply_markup=None):
         await bot.send_message(
             chat_id=chat_id,
             text=text,
-            reply_markup=reply_markup or main_menu(),
+            reply_markup=reply_markup
         )
     except TelegramForbiddenError:
         logger.warning("Bot blocked by user %s", chat_id)
@@ -183,7 +183,6 @@ async def list_sites(message: types.Message):
                 "📊 <b>Ваші сайти:</b>\nОберіть сайт:",
                 keyboard,
             )
-            await safe_send(message.chat.id, " ", main_menu())
 
     except Exception:
         logger.exception("List sites failed")

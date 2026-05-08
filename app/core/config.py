@@ -23,8 +23,8 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     MAX_SITES_PER_USER: int = 20
     MAX_CONCURRENT_CHECKS: int = 10
-    FLAP_UP_THRESHOLD: int = 1
-    FLAP_DOWN_THRESHOLD: int = 1
+    FLAP_UP_THRESHOLD: int = 2
+    FLAP_DOWN_THRESHOLD: int = 2
     RETENTION_DAYS: int = 30
     SSL_WARNING_DAYS: int = 80
     SSL_CRITICAL_DAYS: int = 60
