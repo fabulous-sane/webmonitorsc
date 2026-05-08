@@ -44,8 +44,8 @@ class NotificationService:
         health = normalize_health(payload.health) or "no_data"
         emoji, label = HEALTH_META.get(health, ("⚪", "НЕВІДОМО"))
 
-        is_http_change = payload.http_changed or payload.http_changed_raw
-        is_ssl_change = payload.is_ssl_change or payload.ssl_changed_raw
+        is_http_change = payload.http_changed
+        is_ssl_change = payload.is_ssl_change
 
         lines = [
             f"{emoji} <b>{label}</b>",
@@ -74,13 +74,11 @@ class NotificationService:
                     lines.append("⚠ Невідома помилка")
 
             elif payload.new_status == SiteStatus.DOWN:
-                lines.append(
-                    f"🔴 HTTP {payload.status_code or 'без відповіді'}"
-                )
+                lines.append(f"🔴 HTTP {payload.status_code or 'без відповіді'}")
 
             elif (
-                payload.old_status in (SiteStatus.DOWN, SiteStatus.ERROR, SiteStatus.TIMEOUT)
-                and payload.new_status == SiteStatus.UP
+                    payload.old_status in (SiteStatus.DOWN, SiteStatus.ERROR, SiteStatus.TIMEOUT)
+                    and payload.new_status == SiteStatus.UP
             ):
                 lines.append("🟢 Відновлено")
 
@@ -90,22 +88,21 @@ class NotificationService:
             if payload.response_time_ms is not None and payload.new_status == SiteStatus.UP:
                 lines.append(f"⏱ {payload.response_time_ms} ms")
 
-        ssl_state = resolve_ssl_state(
-            payload.ssl_valid,
-            payload.ssl_warning,
-            payload.url,
-            payload.ssl_error,
-        )
+        if payload.url.startswith("https://") and is_ssl_change:
+            ssl_state = resolve_ssl_state(
+                payload.ssl_valid,
+                payload.ssl_warning,
+                payload.url,
+                payload.ssl_error,
+            )
 
-        days = payload.ssl_days_left if isinstance(payload.ssl_days_left, int) else "?"
+            days = payload.ssl_days_left if isinstance(payload.ssl_days_left, int) else "?"
 
-        if payload.url.startswith("https://"):
             lines += ["", "<b>SSL:</b>"]
 
-            if is_ssl_change:
-                prev = SSL_LABELS.get(payload.prev_ssl_state, "—")
-                curr = SSL_LABELS.get(ssl_state, ssl_state)
-                lines.append(f"{prev} → {curr}")
+            prev = SSL_LABELS.get(payload.prev_ssl_state, "—")
+            curr = SSL_LABELS.get(ssl_state, ssl_state)
+            lines.append(f"{prev} → {curr}")
 
             if ssl_state == "critical":
                 lines.append(f"🔴 критично ({days} днів)")

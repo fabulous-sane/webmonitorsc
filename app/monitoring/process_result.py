@@ -142,8 +142,8 @@ async def process_check_result(
             limit=ssl_threshold,
         )
 
-        if last_rows:
-            prev_valid, prev_warning, prev_error = last_rows[0]
+        if len(last_rows) >= 2:
+            prev_valid, prev_warning, prev_error = last_rows[1]
             prev_ssl_state = resolve_ssl_state(
                 prev_valid, prev_warning, site.url, prev_error
             )
@@ -163,11 +163,16 @@ async def process_check_result(
             and all(s == ssl_state for s in history_states[:ssl_threshold])
         )
 
+        if len(last_rows) < ssl_threshold - 1:
+            ssl_stable = False
+
         notify_ssl = ssl_changed_raw and ssl_stable
 
     notify_payload = None
 
-    if status_changed or notify_ssl or http_changed_raw or ssl_changed_raw:
+    should_notify = status_changed or notify_ssl
+
+    if should_notify:
         notify_payload = NotifyPayload(
             site_id=site.id,
             site_name=site.name,
