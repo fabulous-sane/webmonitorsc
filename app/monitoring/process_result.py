@@ -151,7 +151,7 @@ async def process_check_result(
 
         ssl_changed = ssl_changed_raw and stable
 
-        notify_ssl = ssl_changed
+        notify_ssl = ssl_changed_raw
 
     notify_payload = None
 
