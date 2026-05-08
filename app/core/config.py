@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     FLAP_UP_THRESHOLD: int = 2
     FLAP_DOWN_THRESHOLD: int = 2
     RETENTION_DAYS: int = 30
-    SSL_WARNING_DAYS: int = 60
-    SSL_CRITICAL_DAYS: int = 40
+    SSL_WARNING_DAYS: int = 30
+    SSL_CRITICAL_DAYS: int = 20
 
     TELEGRAM_BOT_TOKEN: str | None = None
     TELEGRAM_CHAT_ID: int | None = None
