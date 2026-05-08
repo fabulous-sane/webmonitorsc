@@ -12,8 +12,6 @@ interface SystemStatus {
   ssl_no_ssl_sites: number;
   ssl_ok_sites: number;
 
-  problematic_sites: number;
-
   ssl_invalid_events: number;
   ssl_critical_events: number;
   ssl_warning_events: number;

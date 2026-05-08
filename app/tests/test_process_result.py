@@ -12,8 +12,10 @@ def make_raw(
     ssl_valid=True,
     ssl_warning=None,
     ssl_days_left=100,
+    reachable=True,
 ):
     return CheckRawResult(
+        reachable=reachable,
         status_code=status_code,
         response_time_ms=100,
         error_type=error_type,

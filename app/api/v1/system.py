@@ -22,7 +22,6 @@ async def system_status(
     now = datetime.now(timezone.utc)
 
     cutoff = now - timedelta(days=settings.RETENTION_DAYS)
-    cutoff = cutoff.astimezone(timezone.utc)
     delay_threshold = timedelta(hours=settings.RETENTION_DELAY_THRESHOLD_HOURS)
 
     scheduler = getattr(request.app.state, "scheduler", None)
@@ -40,8 +39,6 @@ async def system_status(
             "ssl_ok_sites": 0,
             "ssl_no_data_sites": 0,
             "ssl_no_ssl_sites": 0,
-
-            "problematic_sites": 0,
 
             "ssl_critical_events": 0,
             "ssl_warning_events": 0,
@@ -98,8 +95,6 @@ async def system_status(
         "ssl_warning_sites": data.get("ssl_warning_sites", 0),
         "ssl_invalid_sites": data.get("ssl_invalid_sites", 0),
         "ssl_ok_sites": data.get("ssl_ok_sites", 0),
-
-        "problematic_sites": data.get("problematic_sites", 0),
 
         "checks_24h": data.get("checks_24h", 0),
 

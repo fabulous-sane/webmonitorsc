@@ -102,6 +102,7 @@ class NotificationService:
 
             prev = SSL_LABELS.get(payload.prev_ssl_state, "—")
             curr = SSL_LABELS.get(ssl_state, ssl_state)
+
             lines.append(f"{prev} → {curr}")
 
             if ssl_state == "critical":

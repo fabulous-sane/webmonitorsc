@@ -45,8 +45,6 @@ WHERE s.user_id = :user_id
         "ssl_ok_sites": 0,
         "ssl_no_data_sites": 0,
         "ssl_no_ssl_sites": 0,
-
-        "problematic_sites": 0,
     }
 
     for r in rows:
@@ -65,38 +63,34 @@ WHERE s.user_id = :user_id
             ssl_valid,
             ssl_warning,
             url,
-            r.get("ssl_error"),
+            ssl_error = r.get("ssl_error") or None
         )
 
         status = r.get("status")
 
         if status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
-            status = None
-
-        health = compute_health(status, ssl_state)
-
-        if url.startswith("http://"):
-            stats["ssl_no_ssl_sites"] += 1
+            r["health"] = "no_data"
         else:
-            if ssl_state == "critical":
-                stats["ssl_critical_sites"] += 1
-            elif ssl_state == "warning":
-                stats["ssl_warning_sites"] += 1
-            elif ssl_state == "invalid":
-                stats["ssl_invalid_sites"] += 1
-            elif ssl_state == "ok":
-                stats["ssl_ok_sites"] += 1
-            else:
-                stats["ssl_no_data_sites"] += 1
+            r["health"] = compute_health(status, ssl_state) or "no_data"
 
-        if health in ("critical", "warning"):
-            stats["problematic_sites"] += 1
+        if ssl_state == "http":
+            stats["ssl_no_ssl_sites"] += 1
+        elif ssl_state == "critical":
+            stats["ssl_critical_sites"] += 1
+        elif ssl_state == "warning":
+            stats["ssl_warning_sites"] += 1
+        elif ssl_state == "invalid":
+            stats["ssl_invalid_sites"] += 1
+        elif ssl_state == "ok":
+            stats["ssl_ok_sites"] += 1
+        else:
+            stats["ssl_no_data_sites"] += 1
 
     events_stmt = text("""
     SELECT
     COUNT(*) AS checks_24h,
 
-    COUNT(*) FILTER (WHERE status IN ('DOWN','ERROR')) AS critical_events,
+    COUNT(*) FILTER (WHERE status IN ('DOWN','ERROR','TIMEOUT')) AS critical_events,
     COUNT(*) FILTER (WHERE status = 'TIMEOUT') AS timeout_events,
 
     COUNT(*) FILTER (WHERE ssl_warning = 'critical') AS ssl_critical_events,
