@@ -119,7 +119,6 @@ async def process_check_result(
     notify_ssl = False
 
     if site.url.startswith("https://"):
-
         ssl_threshold = (
             settings.FLAP_DOWN_THRESHOLD
             if ssl_state in ("critical", "invalid")
@@ -130,34 +129,29 @@ async def process_check_result(
 
         last_rows = await results_repo.get_last_ssl_states(
             site.id,
-            limit=ssl_threshold,
+            limit=ssl_threshold
         )
 
-        states = [ssl_state] + [
+        history_states = [
             resolve_ssl_state(v, w, site.url, e)
-            for v, w, e in last_rows[:ssl_threshold - 1]
+            for v, w, e in last_rows
         ]
 
-        stable = (
-                len(states) >= ssl_threshold
-                and all(s == ssl_state for s in states)
-        )
+        prev_state = history_states[0] if history_states else None
 
-        prev_state = None
-
-        if len(states) > 1:
-            prev_state = states[1]
-
-        ssl_changed = (
-                stable
-                and prev_state is not None
+        ssl_changed_raw = (
+                prev_state is not None
                 and prev_state != ssl_state
         )
 
-        notify_ssl = (
-                ssl_changed
-                and prev_state is not None
+        stable = (
+                len(history_states) >= ssl_threshold
+                and all(s == ssl_state for s in history_states[:ssl_threshold])
         )
+
+        ssl_changed = ssl_changed_raw and stable
+
+        notify_ssl = ssl_changed
 
     notify_payload = None
 
