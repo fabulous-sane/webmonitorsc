@@ -10,7 +10,6 @@ from app.models.user import User
 
 DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
-
 @pytest_asyncio.fixture
 async def engine():
     engine = create_async_engine(DATABASE_URL, future=True)
@@ -46,7 +45,7 @@ async def user(session):
     )
 
     session.add(user)
-    await session.flush()  # ← КЛЮЧЕВОЙ МОМЕНТ
+    await session.commit()
 
     return user
 
@@ -67,3 +66,8 @@ async def site(session, user):
     await session.commit()
 
     return site
+
+@pytest_asyncio.fixture(autouse=True)
+async def reset_db(session):
+    yield
+    await session.rollback()

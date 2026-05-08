@@ -33,7 +33,7 @@ WHERE s.user_id = :user_id
 """)
 
     result = await session.execute(stmt, {"user_id": user_id})
-    rows = result.mappings().all()
+    rows = [dict(r) for r in result.mappings().all()]
 
     stats = {
         "active_sites": 0,
@@ -66,7 +66,7 @@ WHERE s.user_id = :user_id
             ssl_error = r.get("ssl_error") or None
         )
 
-        status = r.get("status")
+        status = (r.get("status") or "").upper()
 
         if status not in ("UP", "DOWN", "ERROR", "TIMEOUT"):
             r["health"] = "no_data"

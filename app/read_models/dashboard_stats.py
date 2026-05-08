@@ -173,7 +173,7 @@ MIN(cr.ssl_days_left) AS ssl_days_left,
     rows = [dict(row) for row in result.mappings().all()]
 
     for r in rows:
-        status = r.get("status")
+        status = (r.get("status") or "").upper()
 
         ssl_state = resolve_ssl_state(
             r.get("ssl_valid"),
