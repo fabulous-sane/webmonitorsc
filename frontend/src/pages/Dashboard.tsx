@@ -5,13 +5,18 @@ import Header from "../components/Header";
 import TelegramConnect from "../components/TelegramConnect";
 import AddSiteModal from "../components/AddSiteModal";
 import SystemSummary from "../components/SystemSummary";
-import { isProblem } from "../types/status";
 import type { DashboardItem, SiteStatus } from "../types/api";
 import type { SystemStatus } from "../components/SystemSummary";
 import type { SSLState } from "../utils/ssl"
 
 type HealthFilter = "ALL" | "HEALTHY" | "WARNING" | "CRITICAL";
-type StatusFilter = "ВСІ" | "UP" | "PROBLEM" | "ERROR" | "TIMEOUT";
+type StatusFilter =
+  | "ВСІ"
+  | "UP"
+  | "DOWN"
+  | "ERROR"
+  | "TIMEOUT"
+
 type ActivityFilter = "ВСІ" | "АКТИВНІ" | "АРХІВОВАНІ";
 type SSLFilter =
   | "ALL"
@@ -84,8 +89,7 @@ const [systemData, setSystemData] = useState<SystemStatus | null>(null)
 if (loading) return <div className="p-10">Завантаження...</div>;
 
 const filteredSites = sites.filter(s => {
-  const state: SSLState =
-    s.ssl_state ?? (s.url.startsWith("http://") ? "http" : "no_data")
+  const state = s.ssl_state
 
   const mapped = sslFilterMap[sslFilter]
 
@@ -93,15 +97,14 @@ const filteredSites = sites.filter(s => {
   if (activityFilter === "АКТИВНІ" && !s.is_active) return false
   if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
 
-  // http status
-  if (statusFilter === "PROBLEM") {
-    if (!isProblem(s.last_status)) return false
-  } else if (
-    statusFilter !== "ВСІ" &&
-    (s.last_status ?? "") !== statusFilter
-  ) {
-    return false
-  }
+const effectiveStatus = s.last_status
+
+if (
+  statusFilter !== "ВСІ" &&
+  s.last_status !== statusFilter
+) {
+  return false
+}
 
   // health
   const h = s.health ?? "no_data"

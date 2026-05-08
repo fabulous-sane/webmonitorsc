@@ -1,5 +1,5 @@
 import { sslMeta, sslLabels } from "../utils/ssl"
-import type { SiteStatus, SSLState, SSLSeverity } from "../types/api";
+import type { SiteStatus, SSLState} from "../types/api";
 import { useState, useEffect, useMemo } from "react";
 import api from "../api/axios";
 import StatusBadge from "./StatusBadge";
@@ -28,7 +28,6 @@ interface Props {
   archived?: boolean;
   ssl_state?: SSLState | null;
   ssl_days_left?: number | null;
-  ssl_severity?: SSLSeverity;
   p95_latency?: number;
   error_rate?: number;
   health?: "ok" | "warning" | "critical" | "no_data";
@@ -51,7 +50,6 @@ export default function SiteCard({
   onReactivated,
   ssl_state,
   ssl_days_left,
-  ssl_severity,
   p95_latency,
   error_rate,
   health,
@@ -82,7 +80,7 @@ const formatDate = (d: string | null) => {
 
 const isHttp = url.startsWith("http://")
 
-const sslState = ssl_state ?? (isHttp ? "http" : "no_data")
+const sslState = ssl_state!
 
 const sslLabel = sslLabels[sslState] ?? "Немає даних"
 
@@ -114,8 +112,7 @@ const chartData = useMemo(() => {
       response_time:
         typeof rt === "number" && isFinite(rt) ? rt : null,
       status: c.status ?? null,
-      ssl_state:
-        c.ssl_state ?? (url.startsWith("http://") ? "http" : "no_data"),
+      ssl_state: c.ssl_state,
       ssl_days_left: c.ssl_days_left ?? null,
       health: c.health ?? "no_data",
     }
@@ -279,14 +276,14 @@ archived
      p95 latency (95% запитів швидше цього значення)
     </div>
     <div className="font-semibold">
-      {p95_latency != null ? `${Math.round(p95_latency)} ms` : "—"}
+      {typeof p95_latency === "number" ? `${Math.round(p95_latency)} ms` : "—"}
     </div>
   </div>
 
 <div>
   <div className="text-gray-500">Error rate</div>
 
-  {error_rate != null ? (
+  {typeof error_rate === "number" ? (
     <div
       className={`font-semibold ${
         error_rate > 10
@@ -297,10 +294,10 @@ archived
       }`}
     >
       {error_rate.toFixed(2)}%
-    </div>
-  ) : (
-    <div className="text-gray-400">—</div>
-  )}
+  </div>
+) : (
+  <div className="text-gray-400">—</div>
+)}
 </div>
 </div>
 
@@ -362,7 +359,7 @@ archived
     const p = payload?.[0]?.payload;
     if (!p) return null;
 
-const pointState = p.ssl_state ?? "no_data"
+const pointState = p.ssl_state
 const isHttp = pointState === "http"
 
 const pointMeta = !isHttp
@@ -430,15 +427,23 @@ const healthKey = (p.health ?? "no_data") as keyof typeof healthLabels
     const { payload } = props
     if (!payload) return false
 
-const healthKey = payload.health ?? "no_data"
+const health = payload.health ?? "no_data"
+
+const color =
+  health === "critical"
+    ? "#dc2626"
+    : health === "warning"
+    ? "#f59e0b"
+    : health === "ok"
+    ? "#16a34a"
+    : "#9ca3af"
+
 const colorMap = {
   critical: "#dc2626",
   warning: "#f59e0b",
   ok: "#16a34a",
   no_data: "#9ca3af"
 }
-
-const color = colorMap[healthKey as keyof typeof colorMap] ?? "#9ca3af"
 return (
       <circle
         r={3}

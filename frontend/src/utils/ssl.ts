@@ -15,11 +15,11 @@ export const sslLabels = {
   no_data: "Немає даних",
 } as const satisfies Record<SSLState, string>
 
-export const sslMeta: Record<SSLState, { label: string; severity: "good" | "warn" | "bad" }> = {
-  critical: { label: "🔥 Критично", severity: "bad" },
-  warning: { label: "⚠ Попередження", severity: "warn" },
-  invalid: { label: "❌ Недійсний", severity: "bad" },
-  ok: { label: "SSL дійсний", severity: "good" },
-  no_data: { label: "Немає даних", severity: "warn" },
-  http: { label: "Без SSL (HTTP)", severity: "warn" },
+export const sslMeta: Record<SSLState, { label: string }> = {
+  critical: { label: "🔥 Критично" },
+  warning: { label: "⚠ Попередження" },
+  invalid: { label: "❌ Недійсний" },
+  ok: { label: "SSL дійсний" },
+  no_data: { label: "Немає даних" },
+  http: { label: "Без SSL (HTTP)" },
 } as const

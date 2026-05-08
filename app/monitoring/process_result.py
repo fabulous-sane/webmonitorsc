@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.utils.ssl_state import resolve_ssl_state
 from app.models.site import Site
 from app.monitoring.status import SiteStatus
@@ -17,17 +18,27 @@ class NotifyPayload:
     site_id: UUID
     site_name: str
     url: str
+
     old_status: SiteStatus | None
     new_status: SiteStatus
+
     status_code: int | None
     response_time_ms: int | None
+
+    http_changed: bool
+    http_changed_raw: bool
+    error_type: str | None
 
     ssl_warning: str | None = None
     ssl_days_left: int | None = None
     ssl_valid: bool | None = None
     ssl_error: str | None = None
+
     health: HealthStatus | None = None
+
     is_ssl_change: bool = False
+    ssl_changed_raw: bool = False
+    prev_ssl_state: str | None = None
 
 @dataclass
 class ProcessResult:
@@ -46,8 +57,7 @@ async def process_check_result(
     checks_repo = ChecksRepository(session)
     results_repo = CheckResultsRepository(session)
 
-    policy_errors = {"blocked_private_ip", "invalid_scheme"}
-    if raw.error_type in policy_errors:
+    if raw.error_type in {"blocked_private_ip", "invalid_scheme"}:
         return ProcessResult(False, site.last_status, site.last_status, None)
 
     if raw.error_type == "timeout":
@@ -63,6 +73,10 @@ async def process_check_result(
     else:
         raw_status = SiteStatus.UP
 
+    old_status = site.last_status
+
+    http_changed_raw = raw_status != old_status
+
     await checks_repo.add_result(
         site_id=site.id,
         status=raw_status,
@@ -73,7 +87,6 @@ async def process_check_result(
         ssl_days_left=raw.ssl_days_left,
         ssl_warning=raw.ssl_warning,
         ssl_error=raw.ssl_error,
-
     )
 
     ssl_state = resolve_ssl_state(
@@ -83,11 +96,11 @@ async def process_check_result(
         raw.ssl_error,
     )
 
-    if raw_status in (SiteStatus.DOWN, SiteStatus.ERROR, SiteStatus.TIMEOUT):
-        threshold = settings.FLAP_DOWN_THRESHOLD
-    else:
-        threshold = settings.FLAP_UP_THRESHOLD
-
+    threshold = (
+        settings.FLAP_DOWN_THRESHOLD
+        if raw_status in (SiteStatus.DOWN, SiteStatus.ERROR, SiteStatus.TIMEOUT)
+        else settings.FLAP_UP_THRESHOLD
+    )
     threshold = max(threshold, 1)
 
     last_statuses = await checks_repo.get_last_statuses(
@@ -98,76 +111,88 @@ async def process_check_result(
     statuses = [raw_status] + last_statuses
 
     http_stable = (
-            len(statuses) >= threshold
-            and all(s == raw_status for s in statuses[:threshold])
+        len(statuses) >= threshold
+        and all(s == raw_status for s in statuses[:threshold])
     )
 
-    old_status = site.last_status
-    if http_stable:
-        new_status = raw_status
-    else:
-        new_status = old_status
-
+    new_status = raw_status if http_stable else old_status
     if new_status is None:
         new_status = raw_status
 
-    status_changed = new_status != old_status
+    status_changed = http_stable and (new_status != old_status)
 
     if status_changed:
         site.last_status = new_status
 
     notify_ssl = False
+    ssl_changed_raw = False
+    prev_ssl_state = None
 
     if site.url.startswith("https://"):
+
         ssl_threshold = (
             settings.FLAP_DOWN_THRESHOLD
             if ssl_state in ("critical", "invalid")
             else settings.FLAP_UP_THRESHOLD
         )
-
         ssl_threshold = max(ssl_threshold, 1)
 
         last_rows = await results_repo.get_last_ssl_states(
             site.id,
-            limit=ssl_threshold
+            limit=ssl_threshold,
+        )
+
+        if last_rows:
+            prev_valid, prev_warning, prev_error = last_rows[0]
+            prev_ssl_state = resolve_ssl_state(
+                prev_valid, prev_warning, site.url, prev_error
+            )
+
+        ssl_changed_raw = (
+            prev_ssl_state is not None
+            and prev_ssl_state != ssl_state
         )
 
         history_states = [ssl_state] + [
             resolve_ssl_state(v, w, site.url, e)
-            for v, w, e in last_rows
+            for v, w, e in last_rows[:ssl_threshold - 1]
         ]
 
-        prev_state = history_states[1] if len(history_states) > 1 else None
-
-        stable = (
-                len(history_states) >= ssl_threshold
-                and all(s == ssl_state for s in history_states[:ssl_threshold])
+        ssl_stable = (
+            len(history_states) >= ssl_threshold
+            and all(s == ssl_state for s in history_states[:ssl_threshold])
         )
 
-        ssl_changed = (
-                prev_state is not None
-                and prev_state != ssl_state
-        )
-
-        notify_ssl = ssl_changed
+        notify_ssl = ssl_changed_raw and ssl_stable
 
     notify_payload = None
 
-    if status_changed or notify_ssl:
+    if status_changed or notify_ssl or http_changed_raw or ssl_changed_raw:
         notify_payload = NotifyPayload(
             site_id=site.id,
             site_name=site.name,
             url=site.url,
+
             old_status=old_status,
             new_status=new_status,
+
             status_code=raw.status_code,
             response_time_ms=raw.response_time_ms,
+
+            http_changed=status_changed,
+            http_changed_raw=http_changed_raw,
+            error_type=raw.error_type,
+
             ssl_warning=raw.ssl_warning,
             ssl_days_left=raw.ssl_days_left,
             ssl_valid=raw.ssl_valid,
             ssl_error=raw.ssl_error,
+
             health=compute_health(new_status, ssl_state),
-            is_ssl_change = notify_ssl,
+
+            is_ssl_change=notify_ssl,
+            ssl_changed_raw=ssl_changed_raw,
+            prev_ssl_state=prev_ssl_state,
         )
 
     site.last_checked_at = datetime.now(timezone.utc)
@@ -178,4 +203,3 @@ async def process_check_result(
         new_status=new_status,
         notify_payload=notify_payload,
     )
-

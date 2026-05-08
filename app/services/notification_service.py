@@ -12,11 +12,28 @@ from app.repositories.users import UsersRepository
 logger = logging.getLogger(__name__)
 
 HEALTH_META = {
-    "critical": ("🔴", "Критично"),
-    "warning": ("🟡", "Попередження"),
-    "ok": ("🟢", "Нормально"),
-    "no_data": ("⚪", "Немає даних"),
+    "critical": ("🔴", "КРИТИЧНО"),
+    "warning": ("🟡", "ПОПЕРЕДЖЕННЯ"),
+    "ok": ("🟢", "НОРМАЛЬНО"),
+    "no_data": ("⚪", "НЕМАЄ ДАНИХ"),
 }
+
+STATUS_LABELS = {
+    SiteStatus.UP: "Працює",
+    SiteStatus.DOWN: "Недоступний",
+    SiteStatus.ERROR: "Помилка",
+    SiteStatus.TIMEOUT: "Таймаут",
+}
+
+SSL_LABELS = {
+    "ok": "OK",
+    "warning": "Попередження",
+    "critical": "Критично",
+    "invalid": "Недійсний",
+    "http": "Без SSL",
+    "no_data": "Немає даних",
+}
+
 
 class NotificationService:
     def __init__(self, bot: Bot):
@@ -25,38 +42,53 @@ class NotificationService:
     @staticmethod
     def _format_status(payload: NotifyPayload) -> str:
         health = normalize_health(payload.health) or "no_data"
-        emoji, label = HEALTH_META.get(health, ("⚪", "Невідомо"))
+        emoji, label = HEALTH_META.get(health, ("⚪", "НЕВІДОМО"))
 
-        is_http_change = (
-                payload.old_status is not None
-                and payload.old_status != payload.new_status
-        )
-        is_ssl_change = payload.is_ssl_change
+        is_http_change = payload.http_changed or payload.http_changed_raw
+        is_ssl_change = payload.is_ssl_change or payload.ssl_changed_raw
 
         lines = [
-            f"{emoji} <b>Оновлення стану ресурсу</b>",
+            f"{emoji} <b>{label}</b>",
             "",
             f"<b>Сайт:</b> {payload.site_name}",
             f"<b>URL:</b> {payload.url}",
-            f"<b>Стан:</b> {label}",
         ]
 
         if is_http_change:
-            old = payload.old_status.value if payload.old_status else "unknown"
-            new = payload.new_status.value if payload.new_status else "unknown"
-            lines.append(f"<b>HTTP зміна:</b> {old} → {new}")
+            lines += ["", "<b>HTTP:</b>"]
 
-        if is_ssl_change:
-            lines.append("<b>SSL зміна:</b> так")
+            old = STATUS_LABELS.get(payload.old_status, "—")
+            new = STATUS_LABELS.get(payload.new_status, "—")
 
-        if is_http_change and payload.status_code is not None:
-            lines.append(f"<b>HTTP код:</b> {payload.status_code}")
+            lines.append(f"{old} → {new}")
 
-        if (
-                payload.response_time_ms is not None
+            if payload.new_status == SiteStatus.TIMEOUT:
+                lines.append("⏱ Сервер не відповідає")
+
+            elif payload.new_status == SiteStatus.ERROR:
+                if payload.error_type == "connection_error":
+                    lines.append("🌐 Помилка з’єднання")
+                elif payload.error_type == "request_error":
+                    lines.append("⚠ Помилка запиту")
+                else:
+                    lines.append("⚠ Невідома помилка")
+
+            elif payload.new_status == SiteStatus.DOWN:
+                lines.append(
+                    f"🔴 HTTP {payload.status_code or 'без відповіді'}"
+                )
+
+            elif (
+                payload.old_status in (SiteStatus.DOWN, SiteStatus.ERROR, SiteStatus.TIMEOUT)
                 and payload.new_status == SiteStatus.UP
-        ):
-            lines.append(f"<b>Response:</b> {payload.response_time_ms} ms")
+            ):
+                lines.append("🟢 Відновлено")
+
+            if payload.status_code:
+                lines.append(f"Код: {payload.status_code}")
+
+            if payload.response_time_ms is not None and payload.new_status == SiteStatus.UP:
+                lines.append(f"⏱ {payload.response_time_ms} ms")
 
         ssl_state = resolve_ssl_state(
             payload.ssl_valid,
@@ -67,18 +99,24 @@ class NotificationService:
 
         days = payload.ssl_days_left if isinstance(payload.ssl_days_left, int) else "?"
 
-        if ssl_state == "http":
-            lines.append("🌐 SSL: відсутній")
-        elif ssl_state == "critical":
-            lines.append(f"🔴 SSL: критично ({days} днів)")
-        elif ssl_state == "warning":
-            lines.append(f"🟡 SSL: скоро закінчиться ({days} днів)")
-        elif ssl_state == "invalid":
-            lines.append("❌ SSL: недійсний")
-        elif ssl_state == "ok":
-            lines.append(f"🟢 SSL: OK ({days} днів)")
-        else:
-            lines.append("⚪ SSL: немає даних")
+        if payload.url.startswith("https://"):
+            lines += ["", "<b>SSL:</b>"]
+
+            if is_ssl_change:
+                prev = SSL_LABELS.get(payload.prev_ssl_state, "—")
+                curr = SSL_LABELS.get(ssl_state, ssl_state)
+                lines.append(f"{prev} → {curr}")
+
+            if ssl_state == "critical":
+                lines.append(f"🔴 критично ({days} днів)")
+            elif ssl_state == "warning":
+                lines.append(f"🟡 скоро закінчиться ({days} днів)")
+            elif ssl_state == "invalid":
+                lines.append("❌ недійсний")
+            elif ssl_state == "ok":
+                lines.append(f"🟢 OK ({days} днів)")
+            else:
+                lines.append("⚪ немає даних")
 
         return "\n".join(lines)
 
@@ -89,14 +127,10 @@ class NotificationService:
         chat_id: int,
         session: AsyncSession,
     ) -> None:
+
         message = self._format_status(payload)
 
-        if not message or not message.strip():
-            logger.warning("Skip empty notification (site_id=%s)", payload.site_id)
-            return
-
-        if self._bot is None:
-            logger.warning("Bot not initialized (chat_id=%s)", chat_id)
+        if not message.strip():
             return
 
         try:
@@ -115,7 +149,7 @@ class NotificationService:
                 await session.commit()
 
         except TelegramBadRequest as e:
-            logger.warning("TelegramBadRequest (chat_id=%s): %s", chat_id, e)
+            logger.warning("Telegram error: %s", e)
 
         except Exception:
             logger.exception("Unexpected Telegram error")
