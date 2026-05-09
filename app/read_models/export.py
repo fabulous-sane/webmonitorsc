@@ -27,7 +27,7 @@ async def get_checks_for_export(
     stmt = text("""
 WITH grouped AS (
   SELECT
-    date_trunc('minute', cr.checked_at) AS minute,
+    date_trunc('hour', cr.checked_at) AS hour,
     MAX(cr.checked_at) AS max_checked_at
   FROM check_results cr
   JOIN sites s ON s.id = cr.site_id
@@ -35,11 +35,11 @@ WITH grouped AS (
     cr.site_id = :site_id
     AND s.user_id = :user_id
     AND cr.checked_at >= :cutoff
-  GROUP BY minute
+  GROUP BY hour
 )
 
 SELECT
-  g.minute AS checked_at,
+  g.hour AS checked_at,
   cr.status::text,
   cr.status_code,
   cr.response_time_ms AS avg_response_time_ms,

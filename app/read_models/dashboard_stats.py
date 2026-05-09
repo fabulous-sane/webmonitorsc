@@ -131,7 +131,7 @@ async def get_site_checks(
 
     stmt = text("""
     SELECT
-      date_trunc('minute', cr.checked_at) AS checked_at,
+      date_trunc('hour', cr.checked_at) AS checked_at,
       COALESCE(
   AVG(cr.response_time_ms) FILTER (WHERE cr.response_time_ms IS NOT NULL),
   0
@@ -157,7 +157,7 @@ MIN(cr.ssl_days_left) AS ssl_days_left,
       AND s.user_id = :user_id
       AND cr.checked_at >= :cutoff
 
-    GROUP BY date_trunc('minute', cr.checked_at)
+    GROUP BY date_trunc('hour', cr.checked_at)
     ORDER BY checked_at ASC
     """)
 

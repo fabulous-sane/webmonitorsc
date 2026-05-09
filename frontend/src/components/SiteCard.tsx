@@ -80,7 +80,7 @@ const formatDate = (d: string | null) => {
 
 const isHttp = url.startsWith("http://")
 
-const sslState = ssl_state!
+const sslState = ssl_state ?? "no_data"
 
 const sslLabel = sslLabels[sslState] ?? "Немає даних"
 
@@ -332,7 +332,7 @@ archived
           Немає даних
         </div>
       ) : (
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" minWidth={300}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis
