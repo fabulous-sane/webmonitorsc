@@ -10,7 +10,7 @@ def compute_health(http_status: SiteStatus | str | None, ssl_state: str) -> Heal
         return HealthStatus.CRITICAL
 
     if http_status == "TIMEOUT":
-        return HealthStatus.WARNING
+        return HealthStatus.CRITICAL
 
     if http_status is None:
         return HealthStatus.NO_DATA

@@ -142,29 +142,26 @@ async def process_check_result(
             limit=ssl_threshold,
         )
 
-        if len(last_rows) >= 2:
-            prev_valid, prev_warning, prev_error = last_rows[1]
+        if len(last_rows) >= 1:
+            prev_valid, prev_warning, prev_error = last_rows[0]
             prev_ssl_state = resolve_ssl_state(
                 prev_valid, prev_warning, site.url, prev_error
             )
 
         ssl_changed_raw = (
-            prev_ssl_state is not None
-            and prev_ssl_state != ssl_state
+                prev_ssl_state is not None
+                and prev_ssl_state != ssl_state
         )
 
-        history_states = [ssl_state] + [
+        history_states = [
             resolve_ssl_state(v, w, site.url, e)
-            for v, w, e in last_rows[:ssl_threshold - 1]
+            for v, w, e in last_rows[:ssl_threshold]
         ]
 
         ssl_stable = (
-            len(history_states) >= ssl_threshold
-            and all(s == ssl_state for s in history_states[:ssl_threshold])
+                len(history_states) == ssl_threshold
+                and all(s == ssl_state for s in history_states)
         )
-
-        if len(last_rows) < ssl_threshold - 1:
-            ssl_stable = False
 
         notify_ssl = ssl_changed_raw and ssl_stable
 
