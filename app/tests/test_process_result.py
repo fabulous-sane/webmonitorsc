@@ -111,6 +111,7 @@ async def test_notify_payload_created(session, site):
         "app.repositories.checks.ChecksRepository.get_last_statuses",
         new=AsyncMock(return_value=[SiteStatus.DOWN, SiteStatus.DOWN])
     ):
+        site.last_status = SiteStatus.UP
         result = await process_check_result(
             session=session,
             site=site,
@@ -233,14 +234,14 @@ async def test_ssl_no_data(session, site):
             (None, None, None),
         ])
     ):
+        site.last_status = SiteStatus.UP
         result = await process_check_result(
             session=session,
             site=site,
             raw=raw,
         )
 
-    assert result.notify_payload is not None
-    payload = result.notify_payload
+    assert result.notify_payload is None
 
 @pytest.mark.asyncio
 async def test_same_status_no_change(session, site):
@@ -360,6 +361,7 @@ async def test_payload_fields(session, site):
         "app.repositories.checks.ChecksRepository.get_last_statuses",
         new=AsyncMock(return_value=[SiteStatus.DOWN, SiteStatus.DOWN])
     ):
+        site.last_status = SiteStatus.UP
         result = await process_check_result(
             session=session,
             site=site,

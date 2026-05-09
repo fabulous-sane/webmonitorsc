@@ -30,12 +30,17 @@ async def cleanup_old_checks(
 
     while True:
         stmt = text("""
-            WITH deleted AS (
+            WITH to_delete AS (
+    SELECT id
+    FROM check_results
+    WHERE checked_at < :cutoff
+    ORDER BY checked_at
+    LIMIT :batch_size
+),
+deleted AS (
     DELETE FROM check_results
-WHERE checked_at < :cutoff
-ORDER BY checked_at
-LIMIT :batch_size
-RETURNING id;
+    WHERE id IN (SELECT id FROM to_delete)
+    RETURNING id
 )
 SELECT COUNT(*) FROM deleted;
         """)

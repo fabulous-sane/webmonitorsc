@@ -157,11 +157,15 @@ async def process_check_result(
                 and prev_ssl_state != ssl_state
         )
 
-        notify_ssl = ssl_changed_raw or prev_ssl_state is None
+        first_ssl_detected = prev_ssl_state is None
+
+        ssl_stable = len(last_rows) >= ssl_threshold
+
+        notify_ssl = (ssl_changed_raw or first_ssl_detected) and ssl_stable
 
     notify_payload = None
 
-    http_should_notify = status_changed
+    http_should_notify = status_changed and old_status is not None
 
     ssl_should_notify = notify_ssl
 

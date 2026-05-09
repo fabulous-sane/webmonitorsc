@@ -31,7 +31,7 @@ async def export_site_checks(
         session=session,
         site_id=site_id,
         user_id=current_user.id,
-        range=range,
+        time_range=range,
     )
 
     buffer = io.StringIO()
