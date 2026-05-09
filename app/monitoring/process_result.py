@@ -75,7 +75,10 @@ async def process_check_result(
 
     old_status = site.last_status
 
-    http_changed_raw = raw_status != old_status
+    http_changed_raw = (
+            old_status is not None
+            and raw_status != old_status
+    )
 
     await checks_repo.add_result(
         site_id=site.id,
@@ -135,15 +138,16 @@ async def process_check_result(
             if ssl_state in ("critical", "invalid")
             else settings.FLAP_UP_THRESHOLD
         )
-        ssl_threshold = max(ssl_threshold, 1)
+        ssl_threshold = max(ssl_threshold, 2)
 
         last_rows = await results_repo.get_last_ssl_states(
             site.id,
             limit=ssl_threshold,
         )
 
-        if len(last_rows) >= 1:
-            prev_valid, prev_warning, prev_error = last_rows[0]
+        prev_ssl_state = None
+        if len(last_rows) > 1:
+            prev_valid, prev_warning, prev_error = last_rows[1]
             prev_ssl_state = resolve_ssl_state(
                 prev_valid, prev_warning, site.url, prev_error
             )
@@ -153,21 +157,15 @@ async def process_check_result(
                 and prev_ssl_state != ssl_state
         )
 
-        history_states = [
-            resolve_ssl_state(v, w, site.url, e)
-            for v, w, e in last_rows[:ssl_threshold]
-        ]
-
-        ssl_stable = (
-                len(history_states) == ssl_threshold
-                and all(s == ssl_state for s in history_states)
-        )
-
-        notify_ssl = ssl_changed_raw and ssl_stable
+        notify_ssl = ssl_changed_raw or prev_ssl_state is None
 
     notify_payload = None
 
-    should_notify = status_changed or notify_ssl
+    http_should_notify = status_changed
+
+    ssl_should_notify = notify_ssl
+
+    should_notify = http_should_notify or ssl_should_notify
 
     if should_notify:
         notify_payload = NotifyPayload(
