@@ -42,7 +42,7 @@ SELECT
   g.minute AS checked_at,
   cr.status::text,
   cr.status_code,
-  cr.response_time_ms,
+  cr.response_time_ms AS avg_response_time_ms,
   cr.ssl_valid,
   cr.ssl_days_left,
   cr.ssl_warning,
