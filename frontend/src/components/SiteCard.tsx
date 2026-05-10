@@ -146,6 +146,12 @@ useEffect(() => {
 }, [expanded, site_id, debouncedRange])
 
 const safeData = Array.isArray(rawData) ? rawData : []
+
+const safeSslState =
+  typeof c.ssl_state === "string" && c.ssl_state in sslMeta
+    ? c.ssl_state
+    : "no_data"
+
 const chartData = useMemo(() => {
   if (safeData.length === 0) return []
 
@@ -169,7 +175,7 @@ const chartData = useMemo(() => {
       }),
       response_time: typeof rt === "number" && isFinite(rt) ? rt : null,
       status: c.status ?? null,
-      ssl_state: c.ssl_state ?? "no_data",
+      ssl_state: safeSslState,
       ssl_days_left: c.ssl_days_left ?? null,
       health: c.health ?? "no_data",
     })
@@ -450,7 +456,11 @@ if (!active || !Array.isArray(payload) || payload.length === 0) return null
 const p = payload[0]?.payload
 if (!p || typeof p !== "object") return null
 
-const pointState = p.ssl_state
+const pointState =
+  typeof p.ssl_state === "string" && p.ssl_state in sslMeta
+    ? p.ssl_state
+    : "no_data"
+
 const isHttp = pointState === "http"
 
 const pointMeta = !isHttp

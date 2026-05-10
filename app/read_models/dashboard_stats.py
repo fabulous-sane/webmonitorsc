@@ -179,9 +179,11 @@ SELECT
   a.ssl_days_left,
   l.ssl_warning,
   l.ssl_error,
+  s.url,
   UPPER(l.status::text) AS status
 FROM latest l
 JOIN agg a ON a.bucket = l.bucket
+JOIN sites s ON s.id = :site_id
 ORDER BY checked_at ASC
 """)
 
@@ -197,6 +199,7 @@ ORDER BY checked_at ASC
     rows = [dict(row) for row in result.mappings().all()]
 
     for r in rows:
+        r["url"] = r.get("url") or "
         status = (r.get("status") or "").upper()
 
         ssl_state = resolve_ssl_state(
@@ -214,5 +217,6 @@ ORDER BY checked_at ASC
             r["health"] = compute_health(status, ssl_state) or "no_data"
 
     return rows
+
 
 

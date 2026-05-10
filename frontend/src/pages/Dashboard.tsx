@@ -80,7 +80,11 @@ useEffect(() => {
       if (!mounted) return
 
       setSites(Array.isArray(sitesRes.data) ? sitesRes.data : [])
-      setSystemData(systemRes.data ?? null)
+      setSystemData(
+  systemRes.data && typeof systemRes.data === "object"
+    ? systemRes.data
+    : null
+)
 
     } catch {
       if (!mounted) return
@@ -112,7 +116,11 @@ const loadAll = async () => {
     ])
 
     setSites(Array.isArray(sitesRes.data) ? sitesRes.data : [])
-    setSystemData(systemRes.data ?? null)
+    setSystemData(
+  systemRes.data && typeof systemRes.data === "object"
+    ? systemRes.data
+    : null
+)
   } catch {
     setSites([])
     setSystemData(null)
@@ -261,7 +269,9 @@ const filteredSites = useMemo(() => {
           Немає сайтів
         </div>
       ) : (
-        filteredSites.map(site => (
+        filteredSites
+  .filter(s => s && typeof s === "object" && s.site_id)
+  .map(site => (
           <SiteCard
             key={site.site_id}
             {...site}
