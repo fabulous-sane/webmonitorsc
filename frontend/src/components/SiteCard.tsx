@@ -149,7 +149,6 @@ const chartData = useMemo(() => {
   if (!Array.isArray(rawData) || rawData.length === 0) return []
 
   return rawData
-    .slice(-1000)
     .map((c) => {
       if (!c?.checked_at) return null
 

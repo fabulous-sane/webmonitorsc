@@ -25,7 +25,7 @@ async def get_overview(
         cr.ssl_valid,
         cr.ssl_days_left,
         cr.ssl_warning,
-        cr.ssl_error,        -- FIX
+        cr.ssl_error,       
         cr.ssl_expires_at,
 
         COALESCE(stats_24.uptime_24h, 0) AS uptime_24h,
@@ -65,7 +65,7 @@ async def get_overview(
 
         FROM check_results
         WHERE site_id = s.id
-          AND checked_at DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv')
+        AND checked_at >= NOW() - INTERVAL '24 hours'
     ) stats_24 ON true
 
     LEFT JOIN (
@@ -168,7 +168,10 @@ latest AS (
 agg AS (
   SELECT
     bucket,
-    AVG(response_time_ms) FILTER (WHERE response_time_ms IS NOT NULL) AS avg_response_time_ms,
+    COALESCE(
+  AVG(response_time_ms) FILTER (WHERE response_time_ms IS NOT NULL),
+  0
+),
     MIN(ssl_days_left) AS ssl_days_left
   FROM bucketed
   GROUP BY bucket

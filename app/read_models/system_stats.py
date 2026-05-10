@@ -107,8 +107,8 @@ WHERE s.user_id = :user_id
       ) AS ssl_warning_events,
 
       COUNT(*) FILTER (
-        WHERE ssl_valid = false OR ssl_error IS NOT NULL
-      ) AS ssl_invalid_events,
+        WHERE ssl_error = 'cert_invalid'
+        ) AS ssl_invalid_events,
 
       COUNT(*) FILTER (
         WHERE ssl_valid IS NULL
@@ -121,7 +121,10 @@ WHERE s.user_id = :user_id
 
     WHERE s.user_id = :user_id
     AND s.is_active = true
-    cr.checked_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv')
+    AND cr.checked_at >= (
+  (DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv'))
+  AT TIME ZONE 'Europe/Kyiv'
+)
     """)
 
     events = await session.execute(events_stmt, {"user_id": user_id})
