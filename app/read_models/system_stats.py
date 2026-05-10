@@ -88,32 +88,40 @@ WHERE s.user_id = :user_id
 
     events_stmt = text("""
     SELECT
-    COUNT(*) AS checks_24h,
+      COUNT(*) AS checks_24h,
 
-    COUNT(*) FILTER (WHERE status IN ('DOWN','ERROR','TIMEOUT')) AS critical_events,
-    COUNT(*) FILTER (WHERE status = 'TIMEOUT') AS timeout_events,
+      COUNT(*) FILTER (
+        WHERE status IN ('DOWN','ERROR','TIMEOUT')
+      ) AS critical_events,
 
-    COUNT(*) FILTER (WHERE ssl_warning = 'critical') AS ssl_critical_events,
-    COUNT(*) FILTER (WHERE ssl_warning = 'warning') AS ssl_warning_events,
+      COUNT(*) FILTER (
+        WHERE status = 'TIMEOUT'
+      ) AS timeout_events,
 
-    COUNT(DISTINCT site_id) FILTER (
-    WHERE ssl_valid = false
-    AND ssl_error = 'cert_invalid'
-    AND s.url NOT LIKE 'http://%'
-) AS ssl_invalid_events,
+      COUNT(*) FILTER (
+        WHERE ssl_warning = 'critical'
+      ) AS ssl_critical_events,
 
-    COUNT(*) FILTER (
+      COUNT(*) FILTER (
+        WHERE ssl_warning = 'warning'
+      ) AS ssl_warning_events,
+
+      COUNT(*) FILTER (
+        WHERE ssl_valid = false OR ssl_error IS NOT NULL
+      ) AS ssl_invalid_events,
+
+      COUNT(*) FILTER (
         WHERE ssl_valid IS NULL
         AND ssl_warning IS NULL
         AND s.url NOT LIKE 'http://%'
-    ) AS ssl_no_data_events
+      ) AS ssl_no_data_events
 
-FROM check_results cr
-JOIN sites s ON s.id = cr.site_id
+    FROM check_results cr
+    JOIN sites s ON s.id = cr.site_id
 
-WHERE s.user_id = :user_id
-AND s.is_active = true
-AND cr.checked_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv')
+    WHERE s.user_id = :user_id
+    AND s.is_active = true
+    AND cr.checked_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv')
     """)
 
     events = await session.execute(events_stmt, {"user_id": user_id})

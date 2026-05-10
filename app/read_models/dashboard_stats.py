@@ -130,36 +130,60 @@ async def get_site_checks(
         raise ValueError("Invalid range")
 
     stmt = text("""
-    SELECT
-      date_trunc('hour', cr.checked_at) AS checked_at,
-      COALESCE(
-  AVG(cr.response_time_ms) FILTER (WHERE cr.response_time_ms IS NOT NULL),
-  0
-) AS avg_response_time_ms,
+WITH bucketed AS (
+  SELECT
+    (
+      date_trunc('minute', cr.checked_at)
+      - (EXTRACT(MINUTE FROM cr.checked_at)::int %
+          CASE
+              WHEN :range = '24h' THEN 1
+              WHEN :range = '7d' THEN 5
+              ELSE 15
+          END
+        ) * INTERVAL '1 minute'
+    ) AS bucket,
+    cr.*
+  FROM check_results cr
+  JOIN sites s ON s.id = cr.site_id
+  WHERE
+    cr.site_id = :site_id
+    AND s.user_id = :user_id
+    AND cr.checked_at >= :cutoff
+),
 
-(ARRAY_AGG(cr.ssl_valid ORDER BY cr.checked_at DESC))[1] AS ssl_valid,
-MIN(cr.ssl_days_left) AS ssl_days_left,
-(ARRAY_AGG(cr.ssl_warning ORDER BY cr.checked_at DESC))[1] AS ssl_warning,
-      (
-  ARRAY_AGG(cr.ssl_error ORDER BY cr.checked_at DESC)
-)[1] AS ssl_error,
-      MAX(s.url) AS url,
+latest AS (
+  SELECT DISTINCT ON (bucket)
+    bucket,
+    status,
+    ssl_valid,
+    ssl_warning,
+    ssl_error,
+    checked_at
+  FROM bucketed
+  ORDER BY bucket, checked_at DESC
+),
 
-      (
-        ARRAY_AGG(UPPER(cr.status::text) ORDER BY cr.checked_at DESC)
-      )[1] AS status
+agg AS (
+  SELECT
+    bucket,
+    AVG(response_time_ms) FILTER (WHERE response_time_ms IS NOT NULL) AS avg_response_time_ms,
+    MIN(ssl_days_left) AS ssl_days_left
+  FROM bucketed
+  GROUP BY bucket
+)
 
-    FROM check_results cr
-    JOIN sites s ON s.id = cr.site_id
-
-    WHERE
-      cr.site_id = :site_id
-      AND s.user_id = :user_id
-      AND cr.checked_at >= :cutoff
-
-    GROUP BY date_trunc('hour', cr.checked_at)
-    ORDER BY checked_at ASC
-    """)
+SELECT
+  l.bucket AS checked_at,
+  COALESCE(a.avg_response_time_ms, 0) AS avg_response_time_ms,
+  l.ssl_valid,
+  a.ssl_days_left,
+  l.ssl_warning,
+  l.ssl_error,
+  UPPER(l.status::text) AS status
+FROM latest l
+JOIN agg a ON a.bucket = l.bucket
+ORDER BY checked_at ASC
+""")
 
     result = await session.execute(
         stmt,

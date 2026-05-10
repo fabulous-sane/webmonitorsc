@@ -25,45 +25,24 @@ async def get_checks_for_export(
     else:
         raise ValueError("Invalid range")
     stmt = text("""
-WITH grouped AS (
-  SELECT
-    date_trunc('hour', cr.checked_at) AS hour,
-    MAX(cr.checked_at) AS max_checked_at
-  FROM check_results cr
-  JOIN sites s ON s.id = cr.site_id
-  WHERE
-    cr.site_id = :site_id
-    AND s.user_id = :user_id
-    AND cr.checked_at >= :cutoff
-  GROUP BY hour
-)
-
-SELECT
-  g.hour AS checked_at,
+SELECT DISTINCT ON (date_trunc('hour', cr.checked_at))
+  date_trunc('hour', cr.checked_at) AS checked_at,
   cr.status::text,
   cr.status_code,
-  cr.response_time_ms AS avg_response_time_ms,
+  cr.response_time_ms,
   cr.ssl_valid,
   cr.ssl_days_left,
   cr.ssl_warning,
   cr.ssl_error
-
-FROM grouped g
-JOIN check_results cr
-  ON cr.site_id = :site_id
- AND cr.checked_at = g.max_checked_at
- AND cr.id = (
-     SELECT id FROM check_results
-     WHERE site_id = :site_id
-     AND checked_at = g.max_checked_at
-     ORDER BY id DESC
-     LIMIT 1
- )
-
-ORDER BY checked_at ASC
+FROM check_results cr
+JOIN sites s ON s.id = cr.site_id
+WHERE
+  cr.site_id = :site_id
+  AND s.user_id = :user_id
+  AND cr.checked_at >= :cutoff
+ORDER BY date_trunc('hour', cr.checked_at), cr.checked_at DESC
 LIMIT 50000
-    """)
-
+""")
     result = await session.execute(
         stmt,
         {

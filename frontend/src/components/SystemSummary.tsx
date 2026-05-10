@@ -61,7 +61,7 @@ export default function SystemSummary({ data }: { data: SystemStatus | null }) {
           SSL стан (сайти)
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Card
             label="Critical"
             value={data.ssl_critical_sites}

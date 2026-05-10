@@ -1,6 +1,6 @@
 import { sslMeta, sslLabels } from "../utils/ssl"
 import type { SiteStatus, SSLState} from "../types/api";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import api from "../api/axios";
 import StatusBadge from "./StatusBadge";
 import type { Check } from "../types/api";
@@ -35,6 +35,20 @@ interface Props {
   onReactivated?: () => void;
 }
 
+const statusLabels: Record<SiteStatus, string> = {
+  UP: "Працює",
+  DOWN: "Недоступний",
+  TIMEOUT: "Таймаут",
+  ERROR: "Помилка",
+}
+
+const healthLabels = {
+  critical: "🔴 Критично",
+  warning: "🟡 Попередження",
+  ok: "🟢 Нормально",
+  no_data: "⚪ Немає даних",
+}
+
 export default function SiteCard({
   site_id,
   name,
@@ -60,13 +74,8 @@ export default function SiteCard({
   const [loading, setLoading] = useState(false);
   const [range, setRange] = useState<"24h" | "7d" | "30d">("24h");
   const [intervalEdit, setIntervalEdit] = useState(check_interval);
-
-  const statusLabels: Record<SiteStatus, string> = {
-  UP: "Працює",
-  DOWN: "Недоступний",
-  TIMEOUT: "Таймаут",
-  ERROR: "Помилка",
-}
+  const [debouncedRange, setDebouncedRange] = useState(range)
+  const [exporting, setExporting] = useState(false)
 
 const formatDate = (d: string | null) => {
   if (!d) return "—"
@@ -84,39 +93,82 @@ const sslState = ssl_state ?? "no_data"
 
 const sslLabel = sslLabels[sslState] ?? "Немає даних"
 
-  useEffect(() => {
-    if (!expanded) return;
+const cacheRef = useRef<Map<string, Check[]>>(new Map())
 
-    setLoading(true);
+useEffect(() => {
+  const t = setTimeout(() => setDebouncedRange(range), 300)
+  return () => clearTimeout(t)
+}, [range])
 
-    api.get(`/dashboard/site/${site_id}`, {
-      params: { range }
+const requestIdRef = useRef(0)
+
+useEffect(() => {
+  if (!expanded) return;
+
+  const key = `${site_id}_${debouncedRange}`
+
+  if (cacheRef.current.has(key)) {
+    setRawData(cacheRef.current.get(key)!)
+    return
+  }
+
+  const controller = new AbortController()
+  const requestId = ++requestIdRef.current
+
+  setLoading(true)
+  setRawData([])
+
+  api.get(`/dashboard/site/${site_id}`, {
+    params: { range: debouncedRange },
+    signal: controller.signal
+  })
+    .then(res => {
+      if (requestId !== requestIdRef.current) return
+
+      const data = res.data ?? []
+      cacheRef.current.set(key, data)
+      setRawData(data)
     })
-      .then(res => setRawData(res.data ?? []))
-      .catch(() => setRawData([]))
-      .finally(() => setLoading(false));
+    .catch(err => {
+        if (controller.signal.aborted) return
+        if (requestId !== requestIdRef.current) return
+        setRawData([])
+    })
+    .finally(() => {
+      if (requestId === requestIdRef.current) {
+        setLoading(false)
+      }
+    })
 
-  }, [expanded, site_id, range]);
+  return () => controller.abort()
+
+}, [expanded, site_id, debouncedRange])
 
 const chartData = useMemo(() => {
-  if (!rawData || rawData.length === 0) return []
+  if (!rawData?.length) return []
 
-  return rawData.map(c => {
-    const t = new Date(c.checked_at ?? "")
-    const time = isNaN(t.getTime()) ? null : t.getTime()
+return rawData.slice(-1000).map(c => {
+  const t = new Date(c.checked_at ?? "")
+  if (isNaN(t.getTime())) return null
 
-    const rt = c.avg_response_time_ms ?? c.response_time_ms
+  const rt = c.avg_response_time_ms ?? c.response_time_ms
 
-    return {
-      time,
-      response_time:
-        typeof rt === "number" && isFinite(rt) ? rt : null,
-      status: c.status ?? null,
-      ssl_state: c.ssl_state,
-      ssl_days_left: c.ssl_days_left ?? null,
-      health: c.health ?? "no_data",
-    }
-  }).filter(p => p.time !== null)
+  return {
+    time: t.getTime(),
+    timeFormatted: t.toLocaleString("uk-UA", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZone: "Europe/Kyiv"
+    }),
+    response_time: typeof rt === "number" && isFinite(rt) ? rt : null,
+    status: c.status ?? null,
+    ssl_state: c.ssl_state,
+    ssl_days_left: c.ssl_days_left ?? null,
+    health: c.health ?? "no_data",
+  }
+}).filter((p): p is NonNullable<typeof p> => p !== null)
+
 }, [rawData])
 
   const threshold = 500;
@@ -140,44 +192,63 @@ const chartData = useMemo(() => {
   return valid.reduce((acc, v) => acc + v.response_time!, 0) / valid.length
 }, [chartData])
 
-  const handleArchive = async () => {
-    if (!confirm("Архівувати сайт?")) return;
-    await api.post(`/sites/${site_id}/deactivate`);
-    onDeleted?.();
-  };
+const clearCache = () => {
+  for (const key of cacheRef.current.keys()) {
+    if (key.startsWith(site_id)) {
+      cacheRef.current.delete(key)
+    }
+  }
+}
 
-  const handleReactivate = async () => {
-    await api.post(`/sites/${site_id}/reactivate`);
-    onReactivated?.();
-  };
+  const handleArchive = async () => {
+  if (!confirm("Архівувати сайт?")) return;
+  await api.post(`/sites/${site_id}/deactivate`);
+  clearCache()
+  onDeleted?.();
+};
+
+const handleReactivate = async () => {
+  await api.post(`/sites/${site_id}/reactivate`);
+  clearCache()
+  onReactivated?.();
+};
 
 const handleExport = async () => {
+  if (exporting) return
+
+  setExporting(true)
+
   try {
     const response = await api.get(`/export/site/${site_id}`, {
-      params: { range },
+      params: { range: debouncedRange },
       responseType: "blob",
-    });
+      timeout: 20000,
+    })
 
-    const blob = new Blob([response.data], { type: "text/csv" });
-    const link = document.createElement("a");
-    const url = URL.createObjectURL(blob);
+    const blob = new Blob([response.data], { type: "text/csv" })
+    const link = document.createElement("a")
+    const urlObj = URL.createObjectURL(blob)
 
-    link.href = url;
-    link.setAttribute("download", `${name}_${range}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
+    link.href = urlObj
+    link.setAttribute("download", `${name}_${debouncedRange}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
 
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(urlObj)
+
   } catch (e: any) {
-  console.error(e)
+    console.error(e)
 
-  if (e?.response?.status === 500) {
-    alert("Помилка сервера під час експорту")
-  } else {
-    alert("Експорт не вдався")
+    if (e?.response?.status === 500) {
+      alert("Помилка сервера під час експорту")
+    } else {
+      alert("Експорт не вдався")
+    }
+  } finally {
+    setExporting(false)
   }
-}}
+}
 
   return (
     <div
@@ -243,10 +314,12 @@ archived
             {expanded ? "Приховати" : "Деталі"}
           </button>
             <button
-            onClick={handleExport}
-            className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200">
-            Експорт CSV
-            </button>
+            disabled={exporting}
+  onClick={handleExport}
+  className="px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 disabled:opacity-50"
+>
+  {exporting ? "Експорт..." : "Експорт CSV"}
+</button>
           {archived ? (
             <button
               onClick={handleReactivate}
@@ -352,12 +425,14 @@ archived
   ]}
 />
 
+
+
             <Tooltip
     content={({ active, payload }) => {
     if (!active || !payload?.length) return null;
 
-    const p = payload?.[0]?.payload;
-    if (!p) return null;
+const p = payload?.[0]?.payload
+if (!p) return null
 
 const pointState = p.ssl_state
 const isHttp = pointState === "http"
@@ -369,24 +444,12 @@ const pointMeta = !isHttp
     }
   : null
 
-const healthLabels = {
-  critical: "🔴 Критично",
-  warning: "🟡 Попередження",
-  ok: "🟢 Нормально",
-  no_data: "⚪ Немає даних",
-}
-
 const healthKey = (p.health ?? "no_data") as keyof typeof healthLabels
 
     return (
       <div className="bg-white p-2 border rounded shadow text-xs">
         <div>
-        {new Date(p.time).toLocaleString("uk-UA", {
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  timeZone: "Europe/Kyiv"
-})}
+        {p.timeFormatted}
         </div>
 
         <div>⏱ {p.response_time != null ? `${p.response_time} ms` : "—"}</div>
@@ -485,6 +548,3 @@ function Uptime({ label, value }: { label: string; value: number }) {
     </div>
   );
 }
-
-
-

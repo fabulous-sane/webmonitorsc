@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import api from "../api/axios";
 import SiteCard from "../components/SiteCard";
 import Header from "../components/Header";
@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ВСІ");
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>("ВСІ");
   const [sslFilter, setSslFilter] = useState<SSLFilter>("ALL");
+  const [systemData, setSystemData] = useState<SystemStatus | null>(null)
 
   const sslButtons = [
   { key: "ALL", label: "ВСІ" },
@@ -65,59 +66,82 @@ const sslFilterMap: Record<SSLFilter, SSLState | null> = {
     }
   };
 
-  useEffect(() => {
-    loadSites().finally(() => setLoading(false));
+useEffect(() => {
+  let mounted = true
+  const controller = new AbortController()
 
-    const interval = setInterval(loadSites, 30000);
-    return () => clearInterval(interval);
-  }, []);
+  const load = async () => {
+    try {
+      const [sitesRes, systemRes] = await Promise.all([
+        api.get("/dashboard/overview", { signal: controller.signal }),
+        api.get("/system/status", { signal: controller.signal })
+      ])
 
-const [systemData, setSystemData] = useState<SystemStatus | null>(null)
-    useEffect(() => {
-  const load = () => {
-    api.get("/system/status")
-      .then(res => setSystemData(res.data))
-      .catch(() => setSystemData(null))
+      if (!mounted) return
+
+      setSites(sitesRes.data)
+      setSystemData(systemRes.data)
+
+    } catch {
+      if (!mounted) return
+      setSites([])
+      setSystemData(null)
+    } finally {
+      if (mounted) setLoading(false)
+    }
   }
 
   load()
+
   const interval = setInterval(load, 60000)
 
-  return () => clearInterval(interval)
+  return () => {
+    mounted = false
+    controller.abort()
+    clearInterval(interval)
+  }
 }, [])
 
 if (loading) return <div className="p-10">Завантаження...</div>;
 
-const filteredSites = sites.filter(s => {
-  const state = s.ssl_state
+const loadAll = async () => {
+  try {
+    const [sitesRes, systemRes] = await Promise.all([
+      api.get("/dashboard/overview"),
+      api.get("/system/status")
+    ])
 
-  const mapped = sslFilterMap[sslFilter]
-
-  // activity
-  if (activityFilter === "АКТИВНІ" && !s.is_active) return false
-  if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
-
-const effectiveStatus = s.last_status
-
-if (
-  statusFilter !== "ВСІ" &&
-  s.last_status !== statusFilter
-) {
-  return false
+    setSites(sitesRes.data)
+    setSystemData(systemRes.data)
+  } catch {
+    setSites([])
+    setSystemData(null)
+  }
 }
 
-  // health
-  const h = s.health ?? "no_data"
+const filteredSites = useMemo(() => {
+  return sites.filter(s => {
+    const state = s.ssl_state
+    const mapped = sslFilterMap[sslFilter]
 
-  if (healthFilter === "CRITICAL" && h !== "critical") return false
-  if (healthFilter === "WARNING" && h !== "warning") return false
-  if (healthFilter === "HEALTHY" && !["ok", "no_data"].includes(h)) return false
+    if (activityFilter === "АКТИВНІ" && !s.is_active) return false
+    if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
 
-  // ssl
-  if (mapped && state !== mapped) return false
+    if (statusFilter !== "ВСІ" && s.last_status !== statusFilter) {
+      return false
+    }
 
-  return true
-})
+    const h = s.health ?? "no_data"
+
+    if (healthFilter === "CRITICAL" && h !== "critical") return false
+    if (healthFilter === "WARNING" && h !== "warning") return false
+    if (healthFilter === "HEALTHY" && !["ok", "no_data"].includes(h)) return false
+
+    if (mapped && state !== mapped) return false
+
+    return true
+  })
+}, [sites, healthFilter, statusFilter, activityFilter, sslFilter])
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -242,8 +266,8 @@ if (
             key={site.site_id}
             {...site}
             archived={!site.is_active}
-            onDeleted={loadSites}
-            onReactivated={loadSites}
+            onDeleted={loadAll}
+            onReactivated={loadAll}
           />
         ))
       )}
@@ -259,7 +283,7 @@ if (
       {showModal && (
         <AddSiteModal
           onClose={() => setShowModal(false)}
-          onCreated={loadSites}
+          onCreated={loadAll}
         />
       )}
 
