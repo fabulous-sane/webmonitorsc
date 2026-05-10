@@ -145,11 +145,6 @@ useEffect(() => {
 
 }, [expanded, site_id, debouncedRange])
 
-const safeData = useMemo(
-  () => (Array.isArray(rawData) ? rawData : []),
-  [rawData]
-)
-
 const chartData = useMemo(() => {
   if (!Array.isArray(rawData) || rawData.length === 0) return []
 
@@ -182,7 +177,7 @@ const chartData = useMemo(() => {
         health: c.health ?? "no_data",
       }
     })
-    .filter(Boolean)
+    .filter((p): p is NonNullable<typeof p> => p !== null)
 }, [rawData])
 
   const threshold = 500;

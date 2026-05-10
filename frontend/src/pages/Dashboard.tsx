@@ -106,7 +106,33 @@ useEffect(() => {
   }
 }, [])
 
-if (loading) return <div className="p-10">Завантаження...</div>;
+const filteredSites = useMemo(() => {
+  if (!Array.isArray(sites)) return []
+
+  return sites.filter(s => {
+    const state = s.ssl_state
+    const mapped = sslFilterMap[sslFilter]
+
+    if (activityFilter === "АКТИВНІ" && !s.is_active) return false
+    if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
+
+    if (statusFilter !== "ВСІ" && s.last_status !== statusFilter) return false
+
+    const h = s.health ?? "no_data"
+
+    if (healthFilter === "CRITICAL" && h !== "critical") return false
+    if (healthFilter === "WARNING" && h !== "warning") return false
+    if (healthFilter === "HEALTHY" && !["ok", "no_data"].includes(h)) return false
+
+    if (mapped && state !== mapped) return false
+
+    return true
+  })
+}, [sites, healthFilter, statusFilter, activityFilter, sslFilter])
+
+if (loading) {
+  return <div className="p-10">Завантаження...</div>;
+}
 
 const loadAll = async () => {
   try {
@@ -127,30 +153,7 @@ const loadAll = async () => {
   }
 }
 
-const filteredSites = useMemo(() => {
-  if (!Array.isArray(sites)) return []
-  return sites.filter(s => {
-    const state = s.ssl_state
-    const mapped = sslFilterMap[sslFilter]
 
-    if (activityFilter === "АКТИВНІ" && !s.is_active) return false
-    if (activityFilter === "АРХІВОВАНІ" && s.is_active) return false
-
-    if (statusFilter !== "ВСІ" && s.last_status !== statusFilter) {
-      return false
-    }
-
-    const h = s.health ?? "no_data"
-
-    if (healthFilter === "CRITICAL" && h !== "critical") return false
-    if (healthFilter === "WARNING" && h !== "warning") return false
-    if (healthFilter === "HEALTHY" && !["ok", "no_data"].includes(h)) return false
-
-    if (mapped && state !== mapped) return false
-
-    return true
-  })
-}, [sites, healthFilter, statusFilter, activityFilter, sslFilter])
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
