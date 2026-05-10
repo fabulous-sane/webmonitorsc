@@ -145,30 +145,33 @@ useEffect(() => {
 }, [expanded, site_id, debouncedRange])
 
 const chartData = useMemo(() => {
-  if (!rawData?.length) return []
+  if (!rawData || rawData.length === 0) return []
 
-return rawData.slice(-1000).map(c => {
-  const t = new Date(c.checked_at ?? "")
-  if (isNaN(t.getTime())) return null
+  const result = []
 
-  const rt = c.avg_response_time_ms ?? c.response_time_ms
+  for (const c of rawData.slice(-1000)) {
+    const t = new Date(c.checked_at ?? "")
+    if (isNaN(t.getTime())) continue
 
-  return {
-    time: t.getTime(),
-    timeFormatted: t.toLocaleString("uk-UA", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      timeZone: "Europe/Kyiv"
-    }),
-    response_time: typeof rt === "number" && isFinite(rt) ? rt : null,
-    status: c.status ?? null,
-    ssl_state: c.ssl_state,
-    ssl_days_left: c.ssl_days_left ?? null,
-    health: c.health ?? "no_data",
+    const rt = c.avg_response_time_ms ?? c.response_time_ms
+
+    result.push({
+      time: t.getTime(),
+      timeFormatted: t.toLocaleString("uk-UA", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        timeZone: "Europe/Kyiv"
+      }),
+      response_time: typeof rt === "number" && isFinite(rt) ? rt : null,
+      status: c.status ?? null,
+      ssl_state: c.ssl_state,
+      ssl_days_left: c.ssl_days_left ?? null,
+      health: c.health ?? "no_data",
+    })
   }
-}).filter((p): p is NonNullable<typeof p> => p !== null)
 
+  return result
 }, [rawData])
 
   const threshold = 500;
@@ -185,11 +188,20 @@ return rawData.slice(-1000).map(c => {
   }
 };
 
-  const average = useMemo(() => {
-  const valid = chartData.filter(v => v.response_time != null)
-  if (!valid.length) return null
+const average = useMemo(() => {
+  if (!chartData || chartData.length === 0) return null
 
-  return valid.reduce((acc, v) => acc + v.response_time!, 0) / valid.length
+  let sum = 0
+  let count = 0
+
+  for (const v of chartData) {
+    if (v.response_time != null) {
+      sum += v.response_time
+      count++
+    }
+  }
+
+  return count ? sum / count : null
 }, [chartData])
 
 const clearCache = () => {
@@ -432,7 +444,7 @@ archived
     if (!active || !payload?.length) return null;
 
 const p = payload?.[0]?.payload
-if (!p) return null
+if (!p || typeof p !== "object") return null
 
 const pointState = p.ssl_state
 const isHttp = pointState === "http"
