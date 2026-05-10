@@ -145,12 +145,10 @@ useEffect(() => {
 
 }, [expanded, site_id, debouncedRange])
 
-const safeData = Array.isArray(rawData) ? rawData : []
-
-const safeSslState =
-  typeof c.ssl_state === "string" && c.ssl_state in sslMeta
-    ? c.ssl_state
-    : "no_data"
+const safeData = useMemo(
+  () => (Array.isArray(rawData) ? rawData : []),
+  [rawData]
+)
 
 const chartData = useMemo(() => {
   if (safeData.length === 0) return []
@@ -159,6 +157,11 @@ const chartData = useMemo(() => {
 
   for (const c of safeData.slice(-1000)) {
     if (!c) continue
+
+    const safeSslState =
+    typeof c.ssl_state === "string" && c.ssl_state in sslMeta
+    ? c.ssl_state
+    : "no_data"
 
     const t = new Date(c.checked_at ?? "")
     if (isNaN(t.getTime())) continue
