@@ -128,6 +128,7 @@ const loadAll = async () => {
 }
 
 const filteredSites = useMemo(() => {
+  if (!Array.isArray(sites)) return []
   return sites.filter(s => {
     const state = s.ssl_state
     const mapped = sslFilterMap[sslFilter]

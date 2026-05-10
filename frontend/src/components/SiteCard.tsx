@@ -151,39 +151,39 @@ const safeData = useMemo(
 )
 
 const chartData = useMemo(() => {
-  if (safeData.length === 0) return []
+  if (!Array.isArray(rawData) || rawData.length === 0) return []
 
-  const result = []
+  return rawData
+    .slice(-1000)
+    .map((c) => {
+      if (!c?.checked_at) return null
 
-for (const c of safeData.slice(-1000)) {
-  const safeSslState =
-    typeof c.ssl_state === "string" && c.ssl_state in sslMeta
-      ? c.ssl_state
-      : "no_data"
+      const t = new Date(c.checked_at)
+      if (isNaN(t.getTime())) return null
 
-    const t = new Date(c.checked_at ?? "")
-    if (isNaN(t.getTime())) continue
+      const rt =
+        typeof c.avg_response_time_ms === "number"
+          ? c.avg_response_time_ms
+          : null
 
-    const rt = c.avg_response_time_ms ?? c.response_time_ms
-
-    result.push({
-      time: t.getTime(),
-      timeFormatted: t.toLocaleTimeString("uk-UA", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        timeZone: "Europe/Kyiv"
-      }),
-      response_time: typeof rt === "number" && isFinite(rt) ? rt : null,
-      status: c.status ?? null,
-      ssl_state: safeSslState,
-      ssl_days_left: c.ssl_days_left ?? null,
-      health: c.health ?? "no_data",
+      return {
+        time: t.getTime(),
+        timeFormatted: t.toLocaleString("uk-UA", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          timeZone: "Europe/Kyiv",
+        }),
+        response_time: rt,
+        status: c.status ?? null,
+        ssl_state: c.ssl_state ?? "no_data",
+        ssl_days_left:
+          typeof c.ssl_days_left === "number" ? c.ssl_days_left : null,
+        health: c.health ?? "no_data",
+      }
     })
-  }
-
-  return result
-}, [safeData])
+    .filter(Boolean)
+}, [rawData])
 
   const threshold = 500;
 
@@ -453,11 +453,7 @@ archived
             <Tooltip
     content={({ active, payload }) => {
 if (!active || !Array.isArray(payload) || payload.length === 0) return null
-
-const first = payload[0]
-if (!first || typeof first !== "object") return null
-
-const p = first.payload
+const p = payload[0]?.payload
 if (!p || typeof p !== "object") return null
 
 const pointState =

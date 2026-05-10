@@ -92,6 +92,8 @@ async def get_overview(
     rows = [dict(r) for r in result.mappings().all()]
 
     for r in rows:
+        r["avg_response_time_ms"] = r.get("avg_response_time_ms")
+        r["response_time_ms"] = r.get("avg_response_time_ms")
         status = r.get("last_status")
 
         ssl_state = resolve_ssl_state(
@@ -174,7 +176,7 @@ agg AS (
 
 SELECT
   l.bucket AS checked_at,
-  COALESCE(a.avg_response_time_ms, 0) AS avg_response_time_ms,
+  COALESCE(a.avg_response_time_ms, NULL) AS avg_response_time_ms,
   l.ssl_valid,
   a.ssl_days_left,
   l.ssl_warning,
@@ -199,6 +201,8 @@ ORDER BY checked_at ASC
     rows = [dict(row) for row in result.mappings().all()]
 
     for r in rows:
+        r["avg_response_time_ms"] = r.get("avg_response_time_ms")
+        r["response_time_ms"] = r.get("avg_response_time_ms")
         r["url"] = r.get("url") or ""
         status = (r.get("status") or "").upper()
 
