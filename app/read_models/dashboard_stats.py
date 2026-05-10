@@ -132,65 +132,69 @@ async def get_site_checks(
         raise ValueError("Invalid range")
 
     stmt = text("""
-WITH bucketed AS (
-  SELECT
-    (
-      date_trunc('minute', cr.checked_at)
-      - (EXTRACT(MINUTE FROM cr.checked_at)::int %
-          CASE
-              WHEN :time_range = '24h' THEN 1
-              WHEN :time_range = '7d' THEN 5
-              ELSE 15
-          END
-        ) * INTERVAL '1 minute'
-    ) AS bucket,
-    cr.*
-  FROM check_results cr
-  JOIN sites s ON s.id = cr.site_id
-  WHERE
-    cr.site_id = :site_id
-    AND s.user_id = :user_id
-    AND cr.checked_at >= :cutoff
-),
+    WITH bucketed AS (
+      SELECT
+        (
+          date_trunc('minute', cr.checked_at)
+          - (EXTRACT(MINUTE FROM cr.checked_at)::int %
+              CASE
+                  WHEN :time_range = '24h' THEN 1
+                  WHEN :time_range = '7d' THEN 5
+                  ELSE 15
+              END
+            ) * INTERVAL '1 minute'
+        ) AS bucket,
+        cr.status,
+        cr.response_time_ms,
+        cr.ssl_valid,
+        cr.ssl_warning,
+        cr.ssl_error,
+        cr.ssl_days_left,
+        cr.checked_at
+      FROM check_results cr
+      JOIN sites s ON s.id = cr.site_id
+      WHERE
+        cr.site_id = :site_id
+        AND s.user_id = :user_id
+        AND cr.checked_at >= :cutoff
+    ),
 
-latest AS (
-  SELECT DISTINCT ON (bucket)
-    bucket,
-    status,
-    ssl_valid,
-    ssl_warning,
-    ssl_error,
-    checked_at
-  FROM bucketed
-  ORDER BY bucket, checked_at DESC
-),
+    latest AS (
+      SELECT DISTINCT ON (bucket)
+        bucket,
+        status,
+        ssl_valid,
+        ssl_warning,
+        ssl_error,
+        checked_at
+      FROM bucketed
+      ORDER BY bucket, checked_at DESC
+    ),
 
-agg AS (
-  SELECT
-    bucket,
-    COALESCE(
-  AVG(response_time_ms) FILTER (WHERE response_time_ms IS NOT NULL),
-  0
-),
-    MIN(ssl_days_left) AS ssl_days_left
-  FROM bucketed
-  GROUP BY bucket
-)
+    agg AS (
+      SELECT
+        bucket,
+        COALESCE(
+          AVG(response_time_ms) FILTER (WHERE response_time_ms IS NOT NULL),
+          0
+        ) AS avg_response_time_ms,
+        MIN(ssl_days_left) AS ssl_days_left
+      FROM bucketed
+      GROUP BY bucket
+    )
 
-SELECT
-  l.bucket AS checked_at,
-  COALESCE(a.avg_response_time_ms, NULL) AS avg_response_time_ms,
-  l.ssl_valid,
-  a.ssl_days_left,
-  l.ssl_warning,
-  l.ssl_error,
-  s.url,
-  UPPER(l.status::text) AS status
-FROM latest l
-JOIN agg a ON a.bucket = l.bucket
-JOIN sites s ON s.id = :site_id
-ORDER BY checked_at ASC
-""")
+    SELECT
+      l.bucket AS checked_at,
+      a.avg_response_time_ms,
+      l.ssl_valid,
+      a.ssl_days_left,
+      l.ssl_warning,
+      l.ssl_error,
+      UPPER(l.status::text) AS status
+    FROM latest l
+    JOIN agg a ON a.bucket = l.bucket
+    ORDER BY checked_at ASC
+    """)
 
     result = await session.execute(
         stmt,
