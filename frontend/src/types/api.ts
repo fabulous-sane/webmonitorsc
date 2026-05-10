@@ -28,7 +28,6 @@ export interface DashboardItem {
 
 export interface Check {
   checked_at: string;
-  bucket: string;
   status?: SiteStatus | null;
   response_time_ms: number | null;
   avg_response_time_ms?: number | null

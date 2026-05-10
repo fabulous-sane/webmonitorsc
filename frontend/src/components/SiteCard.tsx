@@ -155,13 +155,11 @@ const chartData = useMemo(() => {
 
   const result = []
 
-  for (const c of safeData.slice(-1000)) {
-    if (!c) continue
-
-    const safeSslState =
+for (const c of safeData.slice(-1000)) {
+  const safeSslState =
     typeof c.ssl_state === "string" && c.ssl_state in sslMeta
-    ? c.ssl_state
-    : "no_data"
+      ? c.ssl_state
+      : "no_data"
 
     const t = new Date(c.checked_at ?? "")
     if (isNaN(t.getTime())) continue
@@ -456,7 +454,10 @@ archived
     content={({ active, payload }) => {
 if (!active || !Array.isArray(payload) || payload.length === 0) return null
 
-const p = payload[0]?.payload
+const first = payload[0]
+if (!first || typeof first !== "object") return null
+
+const p = first.payload
 if (!p || typeof p !== "object") return null
 
 const pointState =
