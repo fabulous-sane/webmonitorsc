@@ -145,12 +145,13 @@ useEffect(() => {
 
 }, [expanded, site_id, debouncedRange])
 
+const safeData = Array.isArray(rawData) ? rawData : []
 const chartData = useMemo(() => {
-  if (!Array.isArray(rawData) || rawData.length === 0) return []
+  if (safeData.length === 0) return []
 
   const result = []
 
-  for (const c of rawData.slice(-1000)) {
+  for (const c of safeData.slice(-1000)) {
     if (!c) continue
 
     const t = new Date(c.checked_at ?? "")
@@ -175,7 +176,7 @@ const chartData = useMemo(() => {
   }
 
   return result
-}, [rawData])
+}, [safeData])
 
   const threshold = 500;
 
