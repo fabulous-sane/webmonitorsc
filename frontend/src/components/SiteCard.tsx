@@ -74,7 +74,7 @@ export default function SiteCard({
   const [loading, setLoading] = useState(false);
   const [range, setRange] = useState<"24h" | "7d" | "30d">("24h");
   const [intervalEdit, setIntervalEdit] = useState(check_interval);
-  const [debouncedRange, setDebouncedRange] = useState(range)
+  const [debouncedRange, setDebouncedRange] = useState<"24h" | "7d" | "30d">("24h")
   const [exporting, setExporting] = useState(false)
 
 const formatDate = (d: string | null) => {
@@ -107,10 +107,11 @@ useEffect(() => {
 
   const key = `${site_id}_${debouncedRange}`
 
-  if (cacheRef.current.has(key)) {
-    setRawData(cacheRef.current.get(key)!)
-    return
-  }
+  const cached = cacheRef.current.get(key)
+  if (cached) {
+  setRawData(cached)
+  return
+}
 
   const controller = new AbortController()
   const requestId = ++requestIdRef.current
@@ -125,7 +126,7 @@ useEffect(() => {
     .then(res => {
       if (requestId !== requestIdRef.current) return
 
-      const data = res.data ?? []
+      const data = Array.isArray(res.data) ? res.data : []
       cacheRef.current.set(key, data)
       setRawData(data)
     })
@@ -145,11 +146,13 @@ useEffect(() => {
 }, [expanded, site_id, debouncedRange])
 
 const chartData = useMemo(() => {
-  if (!rawData || rawData.length === 0) return []
+  if (!Array.isArray(rawData) || rawData.length === 0) return []
 
   const result = []
 
   for (const c of rawData.slice(-1000)) {
+    if (!c) continue
+
     const t = new Date(c.checked_at ?? "")
     if (isNaN(t.getTime())) continue
 
@@ -157,7 +160,7 @@ const chartData = useMemo(() => {
 
     result.push({
       time: t.getTime(),
-      timeFormatted: t.toLocaleString("uk-UA", {
+      timeFormatted: t.toLocaleTimeString("uk-UA", {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
@@ -165,7 +168,7 @@ const chartData = useMemo(() => {
       }),
       response_time: typeof rt === "number" && isFinite(rt) ? rt : null,
       status: c.status ?? null,
-      ssl_state: c.ssl_state,
+      ssl_state: c.ssl_state ?? "no_data",
       ssl_days_left: c.ssl_days_left ?? null,
       health: c.health ?? "no_data",
     })
@@ -441,9 +444,9 @@ archived
 
             <Tooltip
     content={({ active, payload }) => {
-    if (!active || !payload?.length) return null;
+if (!active || !Array.isArray(payload) || payload.length === 0) return null
 
-const p = payload?.[0]?.payload
+const p = payload[0]?.payload
 if (!p || typeof p !== "object") return null
 
 const pointState = p.ssl_state

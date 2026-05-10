@@ -79,8 +79,8 @@ useEffect(() => {
 
       if (!mounted) return
 
-      setSites(sitesRes.data)
-      setSystemData(systemRes.data)
+      setSites(Array.isArray(sitesRes.data) ? sitesRes.data : [])
+      setSystemData(systemRes.data ?? null)
 
     } catch {
       if (!mounted) return
@@ -111,8 +111,8 @@ const loadAll = async () => {
       api.get("/system/status")
     ])
 
-    setSites(sitesRes.data)
-    setSystemData(systemRes.data)
+    setSites(Array.isArray(sitesRes.data) ? sitesRes.data : [])
+    setSystemData(systemRes.data ?? null)
   } catch {
     setSites([])
     setSystemData(null)
