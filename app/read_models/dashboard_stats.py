@@ -138,8 +138,8 @@ WITH bucketed AS (
       date_trunc('minute', cr.checked_at)
       - (EXTRACT(MINUTE FROM cr.checked_at)::int %
           CASE
-              WHEN :range = '24h' THEN 1
-              WHEN :range = '7d' THEN 5
+              WHEN :time_range = '24h' THEN 1
+              WHEN :time_range = '7d' THEN 5
               ELSE 15
           END
         ) * INTERVAL '1 minute'
@@ -195,6 +195,7 @@ ORDER BY checked_at ASC
             "site_id": site_id,
             "user_id": user_id,
             "cutoff": cutoff,
+            "time_range": range,
         },
     )
 
