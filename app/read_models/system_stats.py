@@ -121,7 +121,7 @@ WHERE s.user_id = :user_id
 
     WHERE s.user_id = :user_id
     AND s.is_active = true
-    AND cr.checked_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv')
+    cr.checked_at >= DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv')
     """)
 
     events = await session.execute(events_stmt, {"user_id": user_id})

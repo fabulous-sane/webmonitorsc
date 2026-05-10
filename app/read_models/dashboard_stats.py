@@ -65,7 +65,7 @@ async def get_overview(
 
         FROM check_results
         WHERE site_id = s.id
-          AND checked_at >= NOW() - INTERVAL '24 hours'
+          AND checked_at DATE_TRUNC('day', NOW() AT TIME ZONE 'Europe/Kyiv')
     ) stats_24 ON true
 
     LEFT JOIN (

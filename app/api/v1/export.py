@@ -52,7 +52,7 @@ async def export_site_checks(
             timestamp.isoformat() if timestamp else "",
             status_value,
             r["status_code"] if r["status_code"] is not None else "",
-            float(r["avg_response_time_ms"]) if r["avg_response_time_ms"] is not None else ""
+            float(r["response_time_ms"]) if r["response_time_ms"] is not None else ""
         ])
 
     buffer.seek(0)
