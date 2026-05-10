@@ -199,7 +199,7 @@ ORDER BY checked_at ASC
     rows = [dict(row) for row in result.mappings().all()]
 
     for r in rows:
-        r["url"] = r.get("url") or "
+        r["url"] = r.get("url") or ""
         status = (r.get("status") or "").upper()
 
         ssl_state = resolve_ssl_state(
